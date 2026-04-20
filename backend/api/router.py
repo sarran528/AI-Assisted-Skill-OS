@@ -10,6 +10,7 @@ from backend.roadmap.router import router as roadmap_router
 from backend.session.router import router as session_router
 from backend.shared.jobs.router import router as jobs_router
 from backend.skill.router import router as skill_router
+from backend.support.router import router as support_router
 from backend.validation.router import router as validation_router
 
 api_router = APIRouter()
@@ -23,3 +24,4 @@ api_router.include_router(session_router, prefix="/sessions", tags=["sessions"],
 api_router.include_router(evidence_router, prefix="/evidence", tags=["evidence"], dependencies=[Depends(get_current_user)])
 api_router.include_router(validation_router, prefix="/validation", tags=["validation"], dependencies=[Depends(get_current_user)])
 api_router.include_router(rag_router, prefix="/rag", tags=["rag"], dependencies=[Depends(get_current_user)])
+api_router.include_router(support_router, prefix="/support", tags=["support"])

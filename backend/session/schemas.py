@@ -1,32 +1,45 @@
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from backend.shared.models import APIModel
 
 
-class SessionStartRequest(BaseModel):
+class SessionStartRequest(APIModel):
     roadmap_id: UUID
     phase: str
     technique_id: str
+    attempt_number: int = 1
 
 
-class SessionMetricsRequest(BaseModel):
+class SessionStartResponse(APIModel):
     session_id: UUID
-    metrics: dict[str, Any]
+    status: str
 
 
-class SessionCompleteRequest(BaseModel):
-    session_id: UUID
+class SessionMetricsRequest(APIModel):
+    metrics: dict
+
+
+class SessionCompleteRequest(APIModel):
     completed_steps: list[str]
 
 
-class SessionResponse(BaseModel):
+class SessionCompleteResponse(APIModel):
     session_id: UUID
-    roadmap_id: UUID
+    status: str
+    passed: bool
+    failure_reason: str | None
+    tip_pending: bool
+    tip_poll_url: str | None
+
+
+class SessionStatusResponse(APIModel):
+    session_id: UUID
+    status: str
     phase: str
     technique_id: str
-    status: str
-    failure_reason: str | None
-    metrics_captured: dict[str, Any]
+    attempt_number: int
+    started_at: datetime | None
+    ended_at: datetime | None

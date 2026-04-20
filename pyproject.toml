@@ -15,6 +15,10 @@ warn_redundant_casts = true
 addopts = "--cov=backend --cov-fail-under=70"
 asyncio_mode = "auto"
 
+[tool.poe.tasks]
+index-rag = "python scripts/rag/pipeline.py --skill-docs-dir data/skill_docs"
+validate-rag = "python scripts/rag/validate_index.py"
+
 [tool.importlinter]
 root_package = "backend"
 

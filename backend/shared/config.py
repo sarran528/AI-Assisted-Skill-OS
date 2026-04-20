@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
+    embedding_batch_size: int = 100
     nhost_storage_endpoint: str = ""
     nhost_storage_bucket: str = ""
     nhost_storage_access_key: str = ""
