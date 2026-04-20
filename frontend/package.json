@@ -9,7 +9,12 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx",
     "test:e2e": "playwright test",
-    "test:e2e:first10": "playwright test e2e/first-ten-steps.spec.ts"
+    "test:e2e:first10": "playwright test e2e/first-ten-steps.spec.ts",
+    "test:e2e:first13": "playwright test e2e/full-loop-13.spec.ts",
+    "test:e2e:assessment": "playwright test e2e/assessment.spec.ts",
+    "test:e2e:session": "playwright test e2e/session.spec.ts",
+    "test:e2e:roadmap": "playwright test e2e/roadmap.spec.ts",
+    "test:e2e:full-loop": "playwright test e2e/full-loop.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

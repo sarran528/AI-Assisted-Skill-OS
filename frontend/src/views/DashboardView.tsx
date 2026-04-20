@@ -19,6 +19,11 @@ export function DashboardView() {
   const [selectedSkill, setSelectedSkill] = useState<string>("drawing");
   const [groundingDone, setGroundingDone] = useState(false);
   const [roadmapFingerprint, setRoadmapFingerprint] = useState<string | null>(null);
+  const [recentSessions] = useState([
+    { id: "S-214", status: "passed", phase: "foundation", score: 0.86 },
+    { id: "S-213", status: "failed", phase: "foundation", score: 0.52 },
+    { id: "S-212", status: "passed", phase: "orientation", score: 0.77 },
+  ]);
 
   const skillsQuery = useSkills();
   const groundingMutation = useSubmitGrounding();
@@ -33,6 +38,7 @@ export function DashboardView() {
   }, [skillsQuery.data]);
 
   function handleGroundingSubmit() {
+    localStorage.setItem("skillos-active-skill", selectedSkill);
     groundingMutation.mutate(
       {
         skill_id: selectedSkill,
@@ -49,6 +55,7 @@ export function DashboardView() {
   }
 
   function handleGenerateRoadmap() {
+    localStorage.setItem("skillos-active-skill", selectedSkill);
     generateRoadmapMutation.mutate(selectedSkill, {
       onSuccess: (data) => {
         const fingerprint = data.fingerprint ?? `fp-${selectedSkill}-v1`;
@@ -112,7 +119,10 @@ export function DashboardView() {
                 type="button"
                 data-testid={`skill-${skill.skill_id}`}
                 className={`skill-item ${selectedSkill === skill.skill_id ? "skill-item--active" : ""}`}
-                onClick={() => setSelectedSkill(skill.skill_id)}
+                onClick={() => {
+                  setSelectedSkill(skill.skill_id);
+                  localStorage.setItem("skillos-active-skill", skill.skill_id);
+                }}
               >
                 <span className="mono-caps">{skill.domain ?? "general"}</span>
                 <strong>{skill.name}</strong>
@@ -158,6 +168,36 @@ export function DashboardView() {
           <StatBlock value="0.65" label="learn tolerance" />
           <StatBlock value="0.78" label="stress resilience" />
         </div>
+
+        <BrutalCard className="dashboard-card" accent="yellow" testId="phase-progress-card">
+          <h3>Phase Progress</h3>
+          <div className="phase-pips" data-testid="phase-pips">
+            <span className="phase-pip phase-pip--done" />
+            <span className="phase-pip phase-pip--done" />
+            <span className="phase-pip phase-pip--active" />
+            <span className="phase-pip" />
+            <span className="phase-pip" />
+          </div>
+          <p>Phase B complete. Phase C unlocked.</p>
+          <BrutalButton data-testid="view-roadmap-btn" onClick={() => navigate(`/roadmap/${selectedSkill}`)}>
+            View Roadmap
+          </BrutalButton>
+        </BrutalCard>
+
+        <BrutalCard className="dashboard-card" accent="blue" testId="recent-sessions-card">
+          <h3>Recent Sessions</h3>
+          <div className="recent-session-list">
+            {recentSessions.map((session) => (
+              <article key={session.id} className="recent-session-item">
+                <strong>{session.id}</strong>
+                <span>{session.phase}</span>
+                <span className={`status-pill status-pill--${session.status}`}>{session.status.toUpperCase()}</span>
+                <span>{Math.round(session.score * 100)}%</span>
+              </article>
+            ))}
+          </div>
+          <BrutalButton data-testid="view-sessions-btn" onClick={handleEnterSession}>Open Session</BrutalButton>
+        </BrutalCard>
       </section>
     </main>
   );
