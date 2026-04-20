@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
 from backend.shared.db.session import get_db_session
-from backend.shared.errors import BusinessError
+from backend.shared.errors import BusinessError, SystemError
 from backend.skill.schemas import (
     SkillTemplateCreate,
     SkillTemplateResponse,
@@ -140,7 +140,7 @@ async def submit_grounding(
         # Fetch user's latest cognitive profile
         result = await db_session.execute(
             select(CognitiveProfile)
-            .where(CognitiveProfile.user_id == current_user["id"])
+            .where(CognitiveProfile.user_id == current_user["user"].id)
             .order_by(CognitiveProfile.created_at.desc())
         )
         profile_record = result.scalar_one_or_none()
@@ -166,7 +166,7 @@ async def submit_grounding(
         ip_address = request.client.host if request.client else "127.0.0.1"
         
         response = await service.submit_grounding(
-            user_id=current_user["id"],
+            user_id=current_user["user"].id,
             skill_id=payload.skill_id,
             responses=payload,
             profile=profile,
@@ -203,7 +203,7 @@ async def generate_skill_research(
         # Fetch user's latest cognitive profile
         result = await db_session.execute(
             select(CognitiveProfile)
-            .where(CognitiveProfile.user_id == current_user["id"])
+            .where(CognitiveProfile.user_id == current_user["user"].id)
             .order_by(CognitiveProfile.created_at.desc())
         )
         profile_record = result.scalar_one_or_none()
@@ -229,7 +229,7 @@ async def generate_skill_research(
         ip_address = request.client.host if request.client else "127.0.0.1"
         
         research_object = await service.generate_skill_research(
-            user_id=current_user["id"],
+            user_id=current_user["user"].id,
             skill_id=skill_id,
             profile=profile,
             ip_address=ip_address,
