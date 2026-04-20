@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, String, Text, text
+from sqlalchemy import Column, DateTime, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from pgvector.sqlalchemy import Vector
 
@@ -7,6 +7,9 @@ from backend.shared.db.base import Base
 
 class RagChunk(Base):
     __tablename__ = "rag_chunks"
+    __table_args__ = (
+        UniqueConstraint("skill_id", "source_url", "chunk_index", name="uq_rag_chunks_skill_source_chunk"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
     skill_id = Column(String(64), nullable=False)
