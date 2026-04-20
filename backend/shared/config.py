@@ -33,11 +33,18 @@ class Settings(BaseSettings):
     nhost_storage_bucket: str = ""
     nhost_storage_access_key: str = ""
     nhost_storage_secret_key: str = ""
+    nhost_subdomain: str = ""
+    nhost_region: str = ""
+    nhost_hasura_url: str = ""
+    nhost_auth_url: str = ""
+    nhost_graphql_url: str = ""
+    nhost_functions_url: str = ""
     cors_allowed_origins: str = "http://localhost:3000"
 
     class Config:
         env_file = ".env.local"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 settings = Settings()

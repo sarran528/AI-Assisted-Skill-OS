@@ -14,17 +14,17 @@ export async function mockFirstTenApis(page: Page) {
 
     if (url.endsWith("/auth/register") || url.endsWith("/auth/login")) {
       return json(route, {
-        access_token: "test-token",
-        token_type: "bearer",
-        user_id: "user-1",
+        accessToken: "test-token",
+        tokenType: "bearer",
+        userId: "user-1",
         email: "test@example.com",
       });
     }
 
     if (url.endsWith("/auth/refresh")) {
       return json(route, {
-        access_token: "test-token-2",
-        token_type: "bearer",
+        accessToken: "test-token-2",
+        tokenType: "bearer",
       });
     }
 

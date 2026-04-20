@@ -3,8 +3,20 @@ import type { InternalAxiosRequestConfig } from "axios";
 
 import { useAuthStore } from "../store/authStore";
 
+function resolveApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (!configured) {
+    return "http://localhost:8000/api/v1";
+  }
+  // Allow env values like http://localhost:8000 while still targeting API routes.
+  if (/\/api\/v1\/?$/.test(configured)) {
+    return configured.replace(/\/$/, "");
+  }
+  return `${configured.replace(/\/$/, "")}/api/v1`;
+}
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
+  baseURL: resolveApiBaseUrl(),
   withCredentials: true,
 });
 
@@ -29,7 +41,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refreshResponse = await apiClient.post("/auth/refresh");
-        const nextToken = refreshResponse.data?.access_token as string | undefined;
+        const nextToken = refreshResponse.data?.accessToken as string | undefined;
         if (nextToken) {
           useAuthStore.getState().setToken(nextToken);
           originalRequest.headers.Authorization = `Bearer ${nextToken}`;

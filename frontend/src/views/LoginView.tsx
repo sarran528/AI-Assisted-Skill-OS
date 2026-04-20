@@ -28,7 +28,7 @@ export function LoginView() {
   const loginMutation = useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
-      setToken(data.access_token);
+      setToken(data.accessToken);
       navigate("/dashboard");
     },
   });

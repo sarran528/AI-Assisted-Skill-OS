@@ -1,7 +1,7 @@
 """create sessions
 
 Revision ID: 008
-Revises: 007
+Revises: 007b
 Create Date: 2026-04-19
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "008"
-down_revision = "007"
+down_revision = "007b"
 branch_labels = None
 depends_on = None
 

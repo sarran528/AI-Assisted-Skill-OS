@@ -1,8 +1,10 @@
 import hashlib
+import ipaddress
 import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.jwt_handler import create_access_token
@@ -39,6 +41,16 @@ def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(COOKIE_NAME, path="/auth")
 
 
+def _normalize_ip_address(ip_address: str | None) -> str | None:
+    if not ip_address:
+        return None
+    try:
+        # The DB column is INET, so non-IP host labels must be dropped.
+        return str(ipaddress.ip_address(ip_address))
+    except ValueError:
+        return None
+
+
 async def register_user(
     *,
     db_session: AsyncSession,
@@ -49,11 +61,25 @@ async def register_user(
     user_agent: str | None,
 ) -> dict:
     repo = AuthRepository(db_session)
-    existing = await repo.get_user_by_email(email)
+    normalized_email = email.strip().lower()
+    normalized_ip = _normalize_ip_address(ip_address)
+    existing = await repo.get_user_by_email(normalized_email)
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be 72 bytes or fewer",
+        )
 
-    user = await repo.create_user(email=email.lower(), password_hash=hash_password(password))
+    try:
+        password_hash = hash_password(password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    try:
+        user = await repo.create_user(email=normalized_email, password_hash=password_hash)
+    except IntegrityError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered") from exc
     access_token, access_jti, access_exp = create_access_token(str(user.id), user.email, user.status)
     refresh_token = _generate_refresh_token()
 
@@ -62,7 +88,7 @@ async def register_user(
         token_hash=_hash_refresh_token(refresh_token),
         jti=access_jti,
         expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
-        ip_address=ip_address,
+        ip_address=normalized_ip,
         user_agent=user_agent,
     )
 
@@ -73,7 +99,7 @@ async def register_user(
         action="auth.register",
         entity_type="user",
         entity_id=str(user.id),
-        ip_address=ip_address,
+        ip_address=normalized_ip,
     )
     return {"user_id": str(user.id), "email": user.email, "access_token": access_token}
 
@@ -88,7 +114,9 @@ async def login_user(
     user_agent: str | None,
 ) -> dict:
     repo = AuthRepository(db_session)
-    user = await repo.get_user_by_email(email.lower())
+    normalized_email = email.strip().lower()
+    normalized_ip = _normalize_ip_address(ip_address)
+    user = await repo.get_user_by_email(normalized_email)
     if not user or not verify_password(password, user.password_hash):
         await log_audit_event(
             db_session,
@@ -96,7 +124,7 @@ async def login_user(
             action="auth.login_failed",
             entity_type="user",
             entity_id=None,
-            ip_address=ip_address,
+            ip_address=normalized_ip,
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if user.status != "active":
@@ -110,7 +138,7 @@ async def login_user(
         token_hash=_hash_refresh_token(refresh_token),
         jti=access_jti,
         expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
-        ip_address=ip_address,
+        ip_address=normalized_ip,
         user_agent=user_agent,
     )
 
@@ -121,7 +149,7 @@ async def login_user(
         action="auth.login",
         entity_type="user",
         entity_id=str(user.id),
-        ip_address=ip_address,
+        ip_address=normalized_ip,
     )
     return {"access_token": access_token}
 
@@ -135,6 +163,7 @@ async def refresh_tokens(
     user_agent: str | None,
 ) -> dict:
     repo = AuthRepository(db_session)
+    normalized_ip = _normalize_ip_address(ip_address)
     token_hash = _hash_refresh_token(refresh_token)
     stored = await repo.get_refresh_token(token_hash)
 
@@ -148,7 +177,7 @@ async def refresh_tokens(
             action="auth.token_rotated",
             entity_type="user",
             entity_id=str(stored.user_id),
-            ip_address=ip_address,
+            ip_address=normalized_ip,
             metadata={"reason": "reuse_detected"},
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked")
@@ -168,7 +197,7 @@ async def refresh_tokens(
         token_hash=_hash_refresh_token(new_refresh_token),
         jti=access_jti,
         expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
-        ip_address=ip_address,
+        ip_address=normalized_ip,
         user_agent=user_agent,
     )
 
@@ -179,7 +208,7 @@ async def refresh_tokens(
         action="auth.token_rotated",
         entity_type="user",
         entity_id=str(user.id),
-        ip_address=ip_address,
+        ip_address=normalized_ip,
     )
     return {"access_token": access_token}
 

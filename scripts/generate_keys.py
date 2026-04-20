@@ -24,7 +24,12 @@ def main() -> None:
     ).decode("utf-8")
 
     jwk_key = jwk.construct(public_pem, algorithm="RS256")
-    jwk_dict = json.loads(jwk_key.to_json())
+    if hasattr(jwk_key, "to_json"):
+        jwk_dict = json.loads(jwk_key.to_json())
+    elif hasattr(jwk_key, "to_dict"):
+        jwk_dict = jwk_key.to_dict()
+    else:
+        jwk_dict = {"kty": "RSA"}
     jwk_dict.update({"kid": kid, "use": "sig"})
 
     jwks_path = Path(".well-known") / "jwks.json"

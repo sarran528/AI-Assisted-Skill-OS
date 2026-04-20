@@ -6,9 +6,10 @@ from backend.main import app
 from backend.shared.db.engine import SessionLocal
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def client() -> TestClient:
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture()

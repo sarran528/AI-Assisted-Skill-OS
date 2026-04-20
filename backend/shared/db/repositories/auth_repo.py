@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.shared.db.models import RefreshToken, RevokedAccessToken, User
@@ -22,7 +23,11 @@ class AuthRepository:
     async def create_user(self, email: str, password_hash: str) -> User:
         user = User(email=email, password_hash=password_hash, status="active")
         self.session.add(user)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            raise
         await self.session.refresh(user)
         return user
 

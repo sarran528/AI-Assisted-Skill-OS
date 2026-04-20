@@ -1,7 +1,7 @@
 """Create baseline_skill_states table
 
-Revision ID: 007
-Revises: 006
+Revision ID: 007b
+Revises: 007
 Create Date: 2026-04-20
 
 """
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "007"
-down_revision = "006"
+revision = "007b"
+down_revision = "007"
 branch_labels = None
 depends_on = None
 

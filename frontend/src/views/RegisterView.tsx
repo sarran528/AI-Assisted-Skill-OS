@@ -29,8 +29,8 @@ export function RegisterView() {
   const registerMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (data) => {
-      setToken(data.access_token);
-      setUser({ userId: data.user_id ?? "new-user", email: data.email ?? "" });
+      setToken(data.accessToken);
+      setUser({ userId: data.userId ?? "new-user", email: data.email ?? "" });
       navigate("/dashboard");
     },
   });
