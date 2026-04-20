@@ -15,6 +15,7 @@ interface LevelState {
 
 const QUESTION_COUNT = 10;
 const LEVELS = [1, 2, 3, 4, 5, 6];
+const LEVEL_TIME_SECONDS = 300;
 
 function computeLevelMetrics(levelState: LevelState) {
   const timings = levelState.responseTimings;
@@ -37,15 +38,22 @@ function computeLevelMetrics(levelState: LevelState) {
   };
 }
 
+function formatTimer(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
 export function AssessmentView() {
   const navigate = useNavigate();
 
   const [currentLevel, setCurrentLevel] = useState(1);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [livesRemaining, setLivesRemaining] = useState(3);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState(900);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState(LEVEL_TIME_SECONDS);
   const [questionStartTs, setQuestionStartTs] = useState<number>(Date.now());
   const [sessionId, setSessionId] = useState<string>("assessment-session-local");
+  const [lifeLossFlash, setLifeLossFlash] = useState(false);
 
   const [levels, setLevels] = useState<Record<number, LevelState>>(() =>
     Object.fromEntries(
@@ -82,16 +90,39 @@ export function AssessmentView() {
   }, []);
 
   useEffect(() => {
-    if (timeLeftSeconds === 0 && !levels[currentLevel].completed) {
-      handleLevelComplete();
+    if (timeLeftSeconds > 0 || levels[currentLevel].completed) {
+      return;
     }
+
+    setLifeLossFlash(true);
+    window.setTimeout(() => setLifeLossFlash(false), 450);
+
+    setLivesRemaining((value) => {
+      const next = Math.max(0, value - 1);
+      if (next === 0) {
+        window.setTimeout(() => handleLevelComplete(currentLevel), 0);
+      }
+      return next;
+    });
+
+    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
+    setCurrentQuestion(1);
+    setQuestionStartTs(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeftSeconds]);
+  }, [timeLeftSeconds, currentLevel, levels]);
 
   const completedLevels = useMemo(
     () => Object.entries(levels).filter(([, state]) => state.completed).map(([level]) => Number(level)),
     [levels]
   );
+
+  function selectLevel(level: number) {
+    setCurrentLevel(level);
+    setCurrentQuestion(1);
+    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
+    setLivesRemaining(3);
+    setQuestionStartTs(Date.now());
+  }
 
   function handleAnswerSubmission(isCorrect: boolean) {
     const now = Date.now();
@@ -111,6 +142,8 @@ export function AssessmentView() {
     });
 
     if (!isCorrect) {
+      setLifeLossFlash(true);
+      window.setTimeout(() => setLifeLossFlash(false), 450);
       setLivesRemaining((value) => Math.max(0, value - 1));
     }
 
@@ -144,20 +177,26 @@ export function AssessmentView() {
       },
     });
 
-    setLevels((previous) => ({
-      ...previous,
-      [level]: {
-        ...previous[level],
-        completed: true,
-      },
-    }));
+    let nextLevel: number | null = null;
+    setLevels((previous) => {
+      const updated = {
+        ...previous,
+        [level]: {
+          ...previous[level],
+          completed: true,
+        },
+      };
+      nextLevel = LEVELS.find((candidate) => !updated[candidate].completed && candidate !== level) ?? null;
+      return updated;
+    });
 
-    const nextLevel = LEVELS.find((candidate) => !levels[candidate].completed && candidate !== level);
     if (nextLevel) {
       setCurrentLevel(nextLevel);
     }
+
     setCurrentQuestion(1);
     setLivesRemaining(3);
+    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
     setQuestionStartTs(Date.now());
   }
 
@@ -217,36 +256,36 @@ export function AssessmentView() {
   }
 
   return (
-    <main className="assessment-page">
+    <main className="assessment-page" data-testid="assessment-screen">
       <header className="top-bar">
         <strong>SKILLOS</strong>
+        <span data-testid="assessment-session-id">Session: {sessionId}</span>
         <span>Level {currentLevel}/6</span>
-        <span className="hearts-row">
+        <span className={`hearts-row ${lifeLossFlash ? "life-loss-flash" : ""}`.trim()} data-testid="lives-left">
           {[0, 1, 2].map((heart) => (
             <Heart key={heart} size={16} fill={heart < livesRemaining ? "currentColor" : "transparent"} />
           ))}
         </span>
-        <span>
-          {Math.floor(timeLeftSeconds / 60)}:{String(timeLeftSeconds % 60).padStart(2, "0")}
-        </span>
+        <span data-testid="timer">{formatTimer(timeLeftSeconds)}</span>
       </header>
 
       <section className="level-grid">
         {LEVELS.map((level) => {
           const isCompleted = levels[level].completed;
+          const isActive = level === currentLevel;
+          const status = isCompleted ? "COMPLETED" : isActive ? "IN PROGRESS" : "AVAILABLE";
+
           return (
             <button
               key={level}
               type="button"
               data-testid={`level-card-${level}`}
-              className={`level-card ${level === currentLevel ? "level-card--active" : ""}`}
-              onClick={() => {
-                setCurrentLevel(level);
-                setCurrentQuestion(1);
-                setQuestionStartTs(Date.now());
-              }}
+              className={`level-card ${isActive ? "level-card--active" : ""}`.trim()}
+              onClick={() => selectLevel(level)}
+              disabled={isCompleted}
             >
-              Level {level} {isCompleted ? "✓" : ""}
+              Level {level}
+              <span className="small-copy">{status}</span>
             </button>
           );
         })}
@@ -275,7 +314,10 @@ export function AssessmentView() {
 
         <BrutalCard className="metrics-card">
           <h2 className="section-title">Performance</h2>
-          <MetricBar label="Accuracy" value={levels[currentLevel].accuracyRecord.filter(Boolean).length / Math.max(1, levels[currentLevel].accuracyRecord.length)} />
+          <MetricBar
+            label="Accuracy"
+            value={levels[currentLevel].accuracyRecord.filter(Boolean).length / Math.max(1, levels[currentLevel].accuracyRecord.length)}
+          />
           <MetricBar label="Latency" value={0.4} />
           <MetricBar label="Retry" value={0} />
         </BrutalCard>
