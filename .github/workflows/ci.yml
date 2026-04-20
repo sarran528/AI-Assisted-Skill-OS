@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: skillos
+          POSTGRES_PASSWORD: skillos
+          POSTGRES_DB: skillos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U skillos" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    env:
+      APP_ENV: ci
+      DATABASE_URL: postgresql+asyncpg://skillos:skillos@localhost:5432/skillos
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: postgresql+asyncpg://skillos:skillos@localhost:5432/skillos
+      EMBEDDING_MODEL: text-embedding-3-small
+      EMBEDDING_DIMENSION: 1536
+      JWT_PRIVATE_KEY: ""
+      JWT_PUBLIC_KEY: ""
+      JWT_KID: ci-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r backend/requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check backend
+
+      - name: Format check (black)
+        run: black --check backend
+
+      - name: Type check (mypy)
+        run: mypy backend
+
+      - name: Import boundaries
+        run: import-linter
+
+      - name: Migrate database
+        run: alembic -c backend/alembic.ini upgrade head
+
+      - name: Tests
+        run: pytest
+
+      - name: Computation coverage gate
+        run: pytest --cov=backend/validation --cov-fail-under=90
+
+      - name: Build Docker image
+        run: docker build -f backend/Dockerfile -t skillos:${{ github.sha }} backend
+
+  deploy-staging:
+    if: github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        run: |
+          IMAGE=ghcr.io/sarran/skillos
+          docker build -f backend/Dockerfile -t $IMAGE:${{ github.sha }} backend
+          docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest

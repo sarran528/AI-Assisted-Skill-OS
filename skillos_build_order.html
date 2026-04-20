@@ -1,0 +1,153 @@
+
+<style>
+.stepper{font-family:var(--font-sans);max-width:660px;margin:0 auto;padding:8px 0}
+.phase-nav{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.pnav{padding:5px 12px;border-radius:20px;border:1px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);font-size:12px;cursor:pointer;transition:all .15s}
+.pnav.active{background:#534AB7;border-color:#534AB7;color:#EEEDFE}
+.phase-card{border:1px solid var(--color-border-tertiary);border-radius:12px;padding:20px;background:var(--color-background-secondary)}
+.phase-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.phase-badge{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.phase-title{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+.phase-weeks{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.phase-why{font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;padding:8px 12px;border-left:2px solid var(--color-border-secondary);border-radius:0}
+.step-list{display:flex;flex-direction:column;gap:6px}
+.step{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:8px;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary)}
+.step-num{font-size:11px;font-weight:500;color:var(--color-text-secondary);min-width:18px;margin-top:1px}
+.step-main{flex:1}
+.step-name{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.step-detail{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.step-tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;display:inline-block;margin-top:4px}
+.tag-compute{background:#EEEDFE;color:#534AB7}
+.tag-infra{background:#E1F5EE;color:#0F6E56}
+.tag-llm{background:#FAECE7;color:#993C1D}
+.tag-control{background:#E6F1FB;color:#185FA5}
+.tag-rag{background:#FAEEDA;color:#854F0B}
+.tag-ui{background:#EAF3DE;color:#3B6D11}
+.unlocks{margin-top:14px;padding:8px 12px;border-radius:8px;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary)}
+.unlocks span{color:var(--color-text-primary);font-weight:500}
+.nav-row{display:flex;justify-content:space-between;margin-top:16px}
+.nav-btn{padding:7px 16px;border-radius:8px;border:1px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);font-size:13px;cursor:pointer;transition:all .15s}
+.nav-btn:hover{background:var(--color-background-primary);color:var(--color-text-primary)}
+.nav-btn.primary{background:#534AB7;border-color:#534AB7;color:#EEEDFE}
+.nav-btn:disabled{opacity:0.3;cursor:not-allowed}
+</style>
+
+<div class="stepper">
+<div class="phase-nav" id="pnav"></div>
+<div id="card"></div>
+</div>
+
+<script>
+const phases=[
+{
+  id:'A',weeks:'Weeks 1–3',title:'Foundation — compute core',
+  color:'#534AB7',bg:'#EEEDFE',
+  why:'Everything downstream depends on the ProfileVector and its 32 parameters. If this is wrong, every roadmap generated later will be wrong. Build and test this in complete isolation before touching any LLM or UI code.',
+  steps:[
+    {n:1,name:'Database schema',detail:'users, cognitive_profiles, learning_parameters, roadmaps, sessions, evidence tables + pgvector extension',tag:'infra'},
+    {n:2,name:'Auth system',detail:'JWT RS256, /auth/register, /auth/login, refresh token in httpOnly cookie',tag:'infra'},
+    {n:3,name:'Assessment signal collector',detail:'6-level battery: raw metric capture per session — accuracy, latency, variance, decay, retry, dropout, recovery',tag:'compute'},
+    {n:4,name:'Normalization module',detail:'9 formulas including inverted n_dropout and n_retry — pure computation, no side effects',tag:'compute'},
+    {n:5,name:'ProfileVector constructor',detail:'6-dimensional weighted sums; clamp to [0,1]; versioned + immutable on write',tag:'compute'},
+    {n:6,name:'Parameter derivation engine',detail:'32 parameters across 8 groups derived from ProfileVector — deterministic formulas only',tag:'compute'},
+    {n:7,name:'Determinism test suite',detail:'Same inputs must always produce identical ProfileVector and parameters — assert on every build',tag:'infra'},
+  ],
+  unlocks:'Phase B — skill intelligence requires a stable ProfileVector as input. Without verified determinism here, LLM calls will produce non-reproducible roadmaps.'
+},
+{
+  id:'B',weeks:'Weeks 4–6',title:'Skill intelligence — LLM layer',
+  color:'#0F6E56',bg:'#E1F5EE',
+  why:'The LLM layer translates the abstract ProfileVector into skill-specific reasoning. It must be built before roadmap generation because the SkillResearchObject it produces is the direct input to the roadmap engine.',
+  steps:[
+    {n:8,name:'Skill template schema',detail:'JSON structure: skill_id, phases, competencies, techniques, checkpoint criteria — stored as versioned records',tag:'infra'},
+    {n:9,name:'Skill grounding probes',detail:'Recognition task, familiarity check, confidence estimation — outputs BaselineSkillState with confidence_bias',tag:'compute'},
+    {n:10,name:'LLM gateway',detail:'Anthropic/OpenAI wrapper — temperature=0 for all structured calls, JSON schema validation, one retry then conservative fallback',tag:'llm'},
+    {n:11,name:'Skill intelligence engine',detail:'4 LLM calls: feasibility analysis, risk zone detection, time modelling, skill modifier derivation — outputs SkillResearchObject',tag:'llm'},
+    {n:12,name:'Parameter–skill mapping layer',detail:'Skill-type overrides applied on top of general params — drawing, music, code, language each adjust different dimensions',tag:'compute'},
+  ],
+  unlocks:'Phase C — roadmap generation requires the SkillResearchObject. Execution and validation engines require a roadmap to exist.'
+},
+{
+  id:'C',weeks:'Weeks 7–9',title:'Execution and validation core',
+  color:'#185FA5',bg:'#E6F1FB',
+  why:'This is the runtime heart of the system — where users actually do work and where progress is decided. Roadmap generation must come first because execution needs a roadmap to operate against. Validation must come last in this phase because it needs evidence from execution.',
+  steps:[
+    {n:13,name:'Roadmap generation engine',detail:'SkillResearchObject + SkillTemplate → deterministic roadmap. Serialize with sorted keys, hash fingerprint for integrity',tag:'control'},
+    {n:14,name:'Session execution engine',detail:'Protocol load → metric capture (POST /session/metrics) → adherence check → evidence store → pass/fail ruling',tag:'control'},
+    {n:15,name:'Evidence upload pipeline',detail:'Multipart upload to S3/R2, metadata record in DB, association to session + checkpoint ID',tag:'infra'},
+    {n:16,name:'Validation engine',detail:'Numeric threshold compare, artifact rubric (LLM-structured), behavioral log rule-check — no partial credit, binary pass/fail',tag:'control'},
+    {n:17,name:'Orchestration layer',detail:'Sole authority for all state transitions: session, checkpoint, roadmap phase. No other layer may trigger state changes',tag:'control'},
+    {n:18,name:'Job queue',detail:'BullMQ / Celery for async roadmap generation and checkpoint validation — decouples heavy calls from request cycle',tag:'infra'},
+  ],
+  unlocks:'Phase D — RAG and support systems need the session/checkpoint model to be stable so they can attach to it. Phase E — frontend has nothing to display until all state machines exist.'
+},
+{
+  id:'D',weeks:'Weeks 10–11',title:'RAG and support systems',
+  color:'#854F0B',bg:'#FAEEDA',
+  why:'The RAG pipeline is independent of computation logic and can be built in parallel with Phase C internally, but it must be complete before frontend integration because the Doubt and Tip systems are triggered by session state that only exists after Phase C.',
+  steps:[
+    {n:19,name:'RAG data pipeline (offline)',detail:'Chunk skill docs at 512 tokens / 64 overlap, embed with text-embedding-3-small, store in pgvector with skill_id + phase + technique metadata',tag:'rag'},
+    {n:20,name:'RAG runtime retrieval service',detail:'Three query modes: resource (top-5), doubt (top-7), tip (top-3) — context-aware query construction per use case',tag:'rag'},
+    {n:21,name:'Resource system',detail:'Triggered at phase start or user request — display only, never affects progress state',tag:'rag'},
+    {n:22,name:'Doubt system',detail:'User submits question in context of current phase + technique — RAG-grounded explanation, no progress effect',tag:'rag'},
+    {n:23,name:'Tip system',detail:'Triggered by repeated failure or high retry/decay — returns specific correction hint, not a general explanation',tag:'rag'},
+  ],
+  unlocks:'Phase E — frontend can now wire up all three support surfaces (resource panel, doubt input, tip display) against live backend endpoints.'
+},
+{
+  id:'E',weeks:'Weeks 12–14',title:'Frontend and end-to-end integration',
+  color:'#3B6D11',bg:'#EAF3DE',
+  why:'Frontend is built last by design. It contains zero business logic — it is display and input only. Building it before the backend is stable would mean rebuilding it repeatedly. All five views must pass E2E integration tests before the project is complete.',
+  steps:[
+    {n:24,name:'Assessment UI',detail:'Test battery interface with real-time metric capture — feeds signal data to POST /assessment/submit',tag:'ui'},
+    {n:25,name:'Dashboard',detail:'Active roadmap overview, current phase and session status — reads from GET /roadmap/:user_id',tag:'ui'},
+    {n:26,name:'Session interface',detail:'Step-by-step protocol display with live metric feedback and evidence file uploader',tag:'ui'},
+    {n:27,name:'Roadmap viewer',detail:'Phase progress, checkpoint status, locked/active/completed state per phase',tag:'ui'},
+    {n:28,name:'Doubt and tip interface',detail:'Inline question input and response display, tip card shown on session failure',tag:'ui'},
+    {n:29,name:'End-to-end integration tests',detail:'Full loop: register → assess → profile → select skill → grounding → roadmap → session → evidence → validation → next phase',tag:'infra'},
+  ],
+  unlocks:'System complete. All 13 steps of the execution loop from the Technical Implementation Plan are covered.'
+}
+];
+
+let cur=0;
+const tagMap={compute:'tag-compute',infra:'tag-infra',llm:'tag-llm',control:'tag-control',rag:'tag-rag',ui:'tag-ui'};
+const tagLabel={compute:'Computation',infra:'Infrastructure',llm:'LLM',control:'Control',rag:'RAG',ui:'UI'};
+
+function render(){
+  const p=phases[cur];
+  document.getElementById('pnav').innerHTML=phases.map((ph,i)=>
+    `<button class="pnav${i===cur?' active':''}" onclick="go(${i})">Phase ${ph.id}</button>`
+  ).join('');
+  document.getElementById('card').innerHTML=`
+<div class="phase-card">
+  <div class="phase-header">
+    <div class="phase-badge" style="background:${p.bg};color:${p.color}">P${p.id}</div>
+    <div>
+      <div class="phase-title">${p.title}</div>
+      <div class="phase-weeks">${p.weeks}</div>
+    </div>
+  </div>
+  <div class="phase-why">${p.why}</div>
+  <div class="step-list">
+    ${p.steps.map(s=>`
+      <div class="step">
+        <div class="step-num">${s.n}</div>
+        <div class="step-main">
+          <div class="step-name">${s.name}</div>
+          <div class="step-detail">${s.detail}</div>
+          <span class="step-tag ${tagMap[s.tag]}">${tagLabel[s.tag]}</span>
+        </div>
+      </div>
+    `).join('')}
+  </div>
+  <div class="unlocks">Unlocks: <span>${p.unlocks}</span></div>
+  <div class="nav-row">
+    <button class="nav-btn" onclick="go(${cur-1})" ${cur===0?'disabled':''}>Previous</button>
+    <button class="nav-btn primary" onclick="go(${cur+1})" ${cur===phases.length-1?'disabled':''}>Next phase</button>
+  </div>
+</div>`;
+}
+function go(i){if(i>=0&&i<phases.length){cur=i;render();}}
+render();
+</script>

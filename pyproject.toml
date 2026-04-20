@@ -1,0 +1,48 @@
+[tool.ruff]
+line-length = 100
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[tool.pytest.ini_options]
+addopts = "--cov=backend --cov-fail-under=70"
+asyncio_mode = "auto"
+
+[tool.importlinter]
+root_package = "backend"
+
+[[tool.importlinter.contracts]]
+name = "feature-independence"
+type = "independence"
+packages = [
+  "backend.assessment",
+  "backend.profiling",
+  "backend.skill",
+  "backend.roadmap",
+  "backend.session",
+  "backend.validation",
+  "backend.rag",
+  "backend.auth",
+]
+
+[[tool.importlinter.contracts]]
+name = "shared-does-not-import-features"
+type = "forbidden"
+source_modules = ["backend.shared"]
+forbidden_modules = [
+  "backend.assessment",
+  "backend.profiling",
+  "backend.skill",
+  "backend.roadmap",
+  "backend.session",
+  "backend.validation",
+  "backend.rag",
+  "backend.auth",
+]
