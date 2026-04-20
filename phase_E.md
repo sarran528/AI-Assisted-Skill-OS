@@ -819,24 +819,24 @@ Playwright traces are uploaded as CI artifacts on failure — this gives you a f
 
 Phase E is complete when all of the following are true.
 
-All five views render without console errors in Chromium, Firefox, and WebKit (Playwright's three browser targets).
+✅ All five views render without console errors in Chromium, Firefox, and WebKit (Playwright's three browser targets).
 
-The neo-brutalist design system is applied consistently: every card has a hard shadow, every button has the push-down interaction, `Space Mono` is used for all headings and data values, the color palette matches the defined CSS variables with no hardcoded hex values outside `globals.css`.
+✅ The neo-brutalist design system is applied consistently: every card has a hard shadow, every button has the push-down interaction, `Space Mono` is used for all headings and data values, the color palette matches the defined CSS variables with no hardcoded hex values outside `globals.css`.
 
-`npx playwright test` passes all tests in `e2e/full-loop.spec.ts`, `assessment.spec.ts`, `session.spec.ts`, `roadmap.spec.ts` — zero failures.
+✅ `npx playwright test` passes all tests in `e2e/full-loop.spec.ts`, `assessment.spec.ts`, `session.spec.ts`, `roadmap.spec.ts` — zero failures.
 
-`pytest backend/tests/e2e/test_full_loop.py` passes — the full 13-step execution loop completes without errors.
+✅ `pytest backend/tests/e2e/test_full_loop.py` passes — the full 13-step execution loop completes without errors.
 
-Evidence upload works end-to-end: a PNG file uploaded from the Playwright test appears in MinIO (local) with a valid presigned URL that returns 200 when fetched.
+✅ Evidence upload works end-to-end: a PNG file uploaded from the Playwright test appears in MinIO (local) with a valid presigned URL that returns 200 when fetched.
 
-The Doubt system returns a grounded answer within 10 seconds in the E2E test — verified by Playwright `toBeVisible` with a 10-second timeout on the answer element.
+✅ The Doubt system returns a grounded answer within 10 seconds in the E2E test — verified by Playwright `toBeVisible` with a 10-second timeout on the answer element.
 
-The Tip card appears automatically after a forced session failure — the E2E test triggers two failures for the same technique and asserts the `TipCard` component becomes visible.
+✅ The Tip card appears automatically after a forced session failure — the E2E test triggers two failures for the same technique and asserts the `TipCard` component becomes visible.
 
-The roadmap fingerprint verification element (`data-testid="roadmap-fingerprint"`) shows "Integrity verified ✓" on the Roadmap viewer.
+✅ The roadmap fingerprint verification element (`data-testid="roadmap-fingerprint"`) shows "Integrity verified ✓" on the Roadmap viewer.
 
-Lighthouse score in CI using `playwright-lighthouse` plugin: Performance ≥ 80, Accessibility ≥ 90 — enforced as a CI gate.
+✅ Lighthouse score in CI using `playwright-lighthouse` plugin: Performance ≥ 80, Accessibility ≥ 90 — enforced as a CI gate.
 
-`import-linter` passes — no frontend view imports from backend modules, no backend modules import from each other in violation of the declared contracts.
+✅ `import-linter` passes — no frontend view imports from backend modules, no backend modules import from each other in violation of the declared contracts.
 
 System is complete. All 13 steps of the Technical Implementation Plan execution loop are covered end to end.

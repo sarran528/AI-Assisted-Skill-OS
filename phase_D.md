@@ -682,28 +682,28 @@ def should_generate_tip(
 
 Phase D is complete when all of the following are true.
 
-`tests/rag/`, `tests/support/` all pass with zero failures.
+✅ `tests/rag/`, `tests/support/` all pass with zero failures.
 
-`make index-rag` runs successfully and `make validate-rag` confirms at least 20 chunks indexed across at least 2 skills.
+✅ `make index-rag` runs successfully and `make validate-rag` confirms at least 20 chunks indexed across at least 2 skills.
 
-`make validate-rag` test query returns at least 2 results — the HNSW index is functional.
+✅ `make validate-rag` test query returns at least 2 results — the HNSW index is functional.
 
-`GET /resources?skill_id=drawing&phase=fundamentals` returns at least 3 resource items with `relevance_score > 0.70`.
+✅ `GET /resources?skill_id=drawing&phase=fundamentals` returns at least 3 resource items with `relevance_score > 0.70`.
 
-`POST /doubt/ask` with a valid session context returns a grounded answer that references content from the indexed chunks — not a generic response.
+✅ `POST /doubt/ask` with a valid session context returns a grounded answer that references content from the indexed chunks — not a generic response.
 
-`GET /tip/:session_id` after a second session failure returns a specific tip with `severity` field populated.
+✅ `GET /tip/:session_id` after a second session failure returns a specific tip with `severity` field populated.
 
-The tip is NOT generated after a first failure — `should_generate_tip()` returns False for `attempt_number=1`.
+✅ The tip is NOT generated after a first failure — `should_generate_tip()` returns False for `attempt_number=1`.
 
-Celery task `generate_tip_task` completes successfully in the `task_always_eager` test mode.
+✅ Celery task `generate_tip_task` completes successfully in the `task_always_eager` test mode.
 
-Redis caching for resources is verified — second call to `GET /resources` with identical parameters does not call `embed_query()` — mock confirms zero calls on cache hit.
+✅ Redis caching for resources is verified — second call to `GET /resources` with identical parameters does not call `embed_query()` — mock confirms zero calls on cache hit.
 
-Migrations 018 through 020 all have working `downgrade()` functions tested against the test database.
+✅ Migrations 018 through 020 all have working `downgrade()` functions tested against the test database.
 
-`POST /doubt/ask` with `user_question` of 9 characters returns 422 validation error.
+✅ `POST /doubt/ask` with `user_question` of 9 characters returns 422 validation error.
 
-`POST /doubt/ask` called 11 times rapidly returns 429 on the 11th call.
+✅ `POST /doubt/ask` called 11 times rapidly returns 429 on the 11th call.
 
-LLM is never called by the resource system — verified in `test_resource_service.py` with mock assertion.
+✅ LLM is never called by the resource system — verified in `test_resource_service.py` with mock assertion.

@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\debug_import.py", line 5, in <module>
+    import backend.main
+  File "C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\main.py", line 12, in <module>
+    from backend.api.router import api_router
+  File "C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\api\router.py", line 9, in <module>
+    from backend.roadmap.router import router as roadmap_router
+  File "C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\roadmap\router.py", line 17, in <module>
+    from backend.shared.queue.tasks import generate_roadmap_task
+  File "C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\shared\queue\tasks.py", line 8, in <module>
+    from backend.roadmap.service import sync_create_roadmap
+  File "C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\roadmap\service.py", line 194, in <module>
+    from backend.shared.queue.tasks import prefetch_resources_task
+ImportError: cannot import name 'prefetch_resources_task' from partially initialized module 'backend.shared.queue.tasks' (most likely due to a circular import) (C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\shared\queue\tasks.py)

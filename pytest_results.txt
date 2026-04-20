@@ -1,0 +1,170 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.0, pytest-8.3.2, pluggy-1.6.0
+rootdir: C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS
+configfile: pyproject.toml
+plugins: anyio-4.13.0, Faker-40.15.0, asyncio-0.24.0, cov-5.0.0
+asyncio: mode=Mode.AUTO, default_loop_scope=None
+collected 37 items
+
+tests\rag\test_chunker.py .....                                          [ 13%]
+tests\rag\test_context_builder.py ...                                    [ 21%]
+tests\rag\test_document_loader.py ....                                   [ 32%]
+tests\rag\test_embedder.py ....                                          [ 43%]
+tests\rag\test_indexer.py .                                              [ 45%]
+tests\rag\test_phase_d_migrations.py ...                                 [ 54%]
+tests\rag\test_query_builder.py ...                                      [ 62%]
+tests\rag\test_retriever.py ..                                           [ 67%]
+tests\support\test_doubt_service.py ..                                   [ 72%]
+tests\support\test_resource_service.py ..                                [ 78%]
+tests\support\test_support_router.py ....                                [ 89%]
+tests\support\test_tip_service.py ...                                    [ 97%]
+tests\support\test_tip_task.py .                                         [100%]
+
+============================== warnings summary ===============================
+.venv-1\Lib\site-packages\pydantic\fields.py:783
+.venv-1\Lib\site-packages\pydantic\fields.py:783
+  c:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\.venv-1\Lib\site-packages\pydantic\fields.py:783: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.8/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+.venv-1\Lib\site-packages\PyPDF2\__init__.py:21
+  c:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\.venv-1\Lib\site-packages\PyPDF2\__init__.py:21: DeprecationWarning: PyPDF2 is deprecated. Please move to the pypdf library instead.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform win32, python 3.12.0-final-0 -----------
+Name                                                          Stmts   Miss  Cover
+---------------------------------------------------------------------------------
+backend\__init__.py                                               0      0   100%
+backend\alembic\versions\018_add_rag_chunks_unique.py            10      0   100%
+backend\alembic\versions\019_create_doubt_log.py                 14      0   100%
+backend\alembic\versions\020_create_tip_log.py                   12      0   100%
+backend\api\__init__.py                                           0      0   100%
+backend\api\router.py                                            25      0   100%
+backend\assessment\__init__.py                                    0      0   100%
+backend\assessment\normalization.py                              42     20    52%
+backend\assessment\parameters.py                                 41     29    29%
+backend\assessment\profile_vector.py                             10      7    30%
+backend\assessment\router.py                                     24      5    79%
+backend\assessment\schemas.py                                    96      3    97%
+backend\assessment\service.py                                    25     12    52%
+backend\auth\__init__.py                                          0      0   100%
+backend\auth\dependencies.py                                     30     22    27%
+backend\auth\jwt_handler.py                                      36     24    33%
+backend\auth\middleware.py                                       17      8    53%
+backend\auth\password.py                                          6      2    67%
+backend\auth\router.py                                           37     14    62%
+backend\auth\schemas.py                                          15      0   100%
+backend\auth\service.py                                          84     64    24%
+backend\boundaries.py                                             2      2     0%
+backend\evidence\__init__.py                                      0      0   100%
+backend\evidence\router.py                                       17      4    76%
+backend\evidence\schemas.py                                      18      0   100%
+backend\evidence\service.py                                      17      7    59%
+backend\main.py                                                  48      8    83%
+backend\orchestration\__init__.py                                 0      0   100%
+backend\orchestration\orchestrator.py                            46     46     0%
+backend\orchestration\state_machine.py                            9      9     0%
+backend\profiling\__init__.py                                     0      0   100%
+backend\profiling\router.py                                       2      0   100%
+backend\rag\__init__.py                                           0      0   100%
+backend\rag\context_builder.py                                   22      1    95%
+backend\rag\embedder.py                                          16      8    50%
+backend\rag\query_builder.py                                     13      1    92%
+backend\rag\retriever.py                                         47      2    96%
+backend\rag\router.py                                            10      2    80%
+backend\rag\schemas.py                                            5      0   100%
+backend\rag\service.py                                            3      1    67%
+backend\roadmap\__init__.py                                       0      0   100%
+backend\roadmap\generator.py                                     56     39    30%
+backend\roadmap\router.py                                        31     13    58%
+backend\roadmap\schemas.py                                       48      0   100%
+backend\roadmap\service.py                                       90     90     0%
+backend\session\__init__.py                                       0      0   100%
+backend\session\execution.py                                     20      0   100%
+backend\session\router.py                                        20      5    75%
+backend\session\schemas.py                                       31     31     0%
+backend\session\service.py                                       52     52     0%
+backend\shared\__init__.py                                        0      0   100%
+backend\shared\audit.py                                          19     14    26%
+backend\shared\config.py                                         36      0   100%
+backend\shared\db\__init__.py                                     0      0   100%
+backend\shared\db\base.py                                         3      0   100%
+backend\shared\db\engine.py                                       9      0   100%
+backend\shared\db\models\__all__.py                               0      0   100%
+backend\shared\db\models\__init__.py                             18      0   100%
+backend\shared\db\models\audit_log.py                            13      0   100%
+backend\shared\db\models\baseline_skill_state.py                 17      0   100%
+backend\shared\db\models\checkpoint_state.py                     13      0   100%
+backend\shared\db\models\cognitive_profile.py                    20      0   100%
+backend\shared\db\models\doubt_log.py                            15      0   100%
+backend\shared\db\models\evidence.py                             19      0   100%
+backend\shared\db\models\job.py                                  10      0   100%
+backend\shared\db\models\learning_parameter.py                   44      0   100%
+backend\shared\db\models\rag.py                                  29      0   100%
+backend\shared\db\models\roadmap.py                              16      0   100%
+backend\shared\db\models\session.py                              19      0   100%
+backend\shared\db\models\skill_research.py                       16      1    94%
+backend\shared\db\models\skill_template.py                       14      0   100%
+backend\shared\db\models\tip_log.py                              16      0   100%
+backend\shared\db\models\token.py                                26      0   100%
+backend\shared\db\models\user.py                                 13      0   100%
+backend\shared\db\repositories\auth_repo.py                      45     28    38%
+backend\shared\db\repositories\doubt_repository.py               24      6    75%
+backend\shared\db\repositories\evidence_repository.py            32     15    53%
+backend\shared\db\repositories\grounding_repository.py           20     10    50%
+backend\shared\db\repositories\roadmap_repository.py             71     49    31%
+backend\shared\db\repositories\skill_research_repository.py      21      9    57%
+backend\shared\db\repositories\skill_template_repository.py      38     25    34%
+backend\shared\db\repositories\tip_repository.py                 29      8    72%
+backend\shared\db\session.py                                      6      2    67%
+backend\shared\errors.py                                          9      5    44%
+backend\shared\jobs\__init__.py                                   0      0   100%
+backend\shared\jobs\router.py                                     8      3    62%
+backend\shared\llm\__init__.py                                    4      0   100%
+backend\shared\llm\client.py                                      6      1    83%
+backend\shared\llm\gateway.py                                    43     33    23%
+backend\shared\llm\prompts.py                                    16      5    69%
+backend\shared\llm\schemas.py                                    41      0   100%
+backend\shared\llm_gateway\__init__.py                            0      0   100%
+backend\shared\llm_gateway\client.py                             27     14    48%
+backend\shared\logging.py                                        17      0   100%
+backend\shared\middleware.py                                     12      0   100%
+backend\shared\models.py                                          4      0   100%
+backend\shared\queue\__init__.py                                  0      0   100%
+backend\shared\queue\beat_schedule.py                             3      0   100%
+backend\shared\queue\celery_app.py                                5      0   100%
+backend\shared\queue\tasks.py                                    61     37    39%
+backend\shared\rate_limit.py                                      8      1    88%
+backend\shared\storage\__init__.py                                0      0   100%
+backend\shared\storage\presigner.py                               9      5    44%
+backend\shared\storage\s3_client.py                              17      9    47%
+backend\shared\storage\uploader.py                               27     16    41%
+backend\skill\__init__.py                                         0      0   100%
+backend\skill\grounding.py                                       44     23    48%
+backend\skill\grounding_schemas.py                               26      0   100%
+backend\skill\grounding_service.py                               30     18    40%
+backend\skill\intelligence.py                                    32      9    72%
+backend\skill\intelligence_service.py                            28     14    50%
+backend\skill\router.py                                          80     55    31%
+backend\skill\schemas.py                                         32      0   100%
+backend\skill\service.py                                         28     16    43%
+backend\skill\template_schema.py                                  4      1    75%
+backend\support\__init__.py                                       0      0   100%
+backend\support\doubt_service.py                                 54     12    78%
+backend\support\resource_service.py                              62      2    97%
+backend\support\router.py                                        29      2    93%
+backend\support\schemas.py                                       41      0   100%
+backend\support\tip_service.py                                   57      7    88%
+backend\validation\__init__.py                                    0      0   100%
+backend\validation\calculations.py                                4      4     0%
+backend\validation\engine.py                                     27     27     0%
+backend\validation\router.py                                      8      2    75%
+backend\validation\schemas.py                                    17      1    94%
+backend\validation\service.py                                   132    132     0%
+backend\validation\validators.py                                 39     39     0%
+---------------------------------------------------------------------------------
+TOTAL                                                          2909   1191    59%
+
+FAIL Required test coverage of 70% not reached. Total coverage: 59.06%
+======================= 37 passed, 3 warnings in 18.47s =======================
