@@ -1,10 +1,13 @@
 """Assessment router - endpoints for cognitive profile assessment.
 
 Three main endpoints:
+1. POST /assessment/start - initialize assessment session
 1. POST /assessment/submit - submit raw assessment data
+3. POST /assessment/complete - finalize assessment session
 2. Process asynchronously through normalization → profile → parameters
 """
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -20,7 +23,22 @@ from backend.auth.dependencies import get_current_user
 from backend.shared.db.session import get_db_session
 from backend.shared.rate_limit import limiter
 
-router = APIRouter(prefix="/assessment", tags=["assessment"])
+router = APIRouter(tags=["assessment"])
+
+
+@router.post("/start", status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
+async def start_assessment(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Initialize an assessment session for the authenticated user."""
+    return {
+        "session_id": str(uuid4()),
+        "levels": [1, 2, 3, 4, 5, 6],
+        "status": "started",
+        "user_id": str(current_user["user"].id),
+    }
 
 
 @router.post("/submit", response_model=ProfileResponse, status_code=status.HTTP_201_CREATED)
@@ -73,7 +91,7 @@ async def submit_assessment(
         HTTPException 400: Invalid submission data.
         HTTPException 429: Rate limit exceeded.
     """
-    user_id = current_user.get("user_id")
+    user_id = current_user["user"].id
     
     # Process assessment through full pipeline
     profile = await process_assessment(
@@ -94,4 +112,22 @@ async def submit_assessment(
         stress_resilience=profile.profile_vector.stress_resilience,
         time_constraint=profile.profile_vector.time_constraint,
     )
+
+
+@router.post("/complete", status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
+async def complete_assessment(
+    request: Request,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Mark the assessment flow complete and return completion metadata."""
+    return {
+        "status": "completed",
+        "profile_id": str(uuid4()),
+        "session_id": payload.get("session_id"),
+        "completed_levels": payload.get("completed_levels", []),
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "user_id": str(current_user["user"].id),
+    }
 

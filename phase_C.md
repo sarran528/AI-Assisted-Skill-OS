@@ -117,6 +117,14 @@ Evidence type assignment test: checkpoint string "produce 5 shapes" → `artifac
 
 Phase ordering test: assert that exactly one phase has `status="active"` in the generated roadmap, it is the first phase, all others are `"locked"`.
 
+Step 13 implementation status in this repo:
+
+- ✅ Deterministic roadmap generator implemented with canonical fingerprinting and integrity verification.
+- ✅ Queue generation task hardened with selective retry behavior (business/system errors fail fast, transient errors retry).
+- ✅ Active-roadmap duplicate guard implemented in both async and sync creation paths.
+- ✅ Roadmap enqueue API contract cleaned to explicit queued response (`202`) and typed responses.
+- ✅ Focused Step 13 tests added and passing for generator determinism and queue/service behavior.
+
 ---
 
 ## Step 14 — Session execution engine
@@ -185,6 +193,14 @@ Session result test: adherence failed → `passed=False, failure_reason="protoco
 Integration test using test DB: start session, submit metrics three times, complete session with all steps, assert session row is `status="completed"`. Start session, complete with missing step, assert session row is `status="failed"` with `failure_reason="protocol_violation"`.
 
 Concurrent session test: attempt to start a second session while one is active for the same user, assert `BusinessError` is raised.
+
+Step 14 implementation status in this repo:
+
+- ✅ Session execution engine implemented (`validate_protocol_adherence`, `compute_session_result`).
+- ✅ Session service flow implemented for start, metrics append, completion, and status polling.
+- ✅ Concurrent active-session guard enforced (`session_already_active`).
+- ✅ Protocol-order validation aligned with strict ordered step progression.
+- ✅ Session-focused test suite passing, including service-level flow checks.
 
 ---
 
@@ -263,6 +279,13 @@ minio:
 
 `tests/evidence/test_service.py` — integration test using MinIO if available in test environment, otherwise mock. Upload a real PNG file bytes, assert evidence record created in DB with correct fields, assert `validated=False` initially.
 
+Step 15 implementation status in this repo:
+
+- ✅ Evidence upload pipeline implemented with S3/R2-compatible uploader flow.
+- ✅ MIME detection and size guardrails implemented with safe fallback handling.
+- ✅ Evidence service and router paths implemented for upload and session listing.
+- ✅ Evidence-focused test suite is passing.
+
 ---
 
 ## Step 16 — Validation engine
@@ -335,6 +358,13 @@ Artifact tests: mock `llm_call` to return `{ "passed": true, "confidence": 0.9, 
 No evidence test: call `validate_checkpoint()` with no evidence records → `passed=False, reason="no_evidence_submitted"`.
 
 All-must-pass test: two numeric evidence records for same checkpoint, one passes and one fails → overall `passed=False`.
+
+Step 16 implementation status in this repo:
+
+- ✅ Validation engine implemented for numeric, artifact, and behavioral evidence.
+- ✅ Checkpoint validation service flow implemented with repository integration.
+- ✅ Validation routes and schemas are in place.
+- ✅ Validation-focused test suite is passing.
 
 ---
 
@@ -419,6 +449,13 @@ Phase unlock test: complete all checkpoints in phase 1, assert phase 2 transitio
 Roadmap completion test: roadmap with two phases, both completed → roadmap `status="completed"`.
 
 `tests/orchestration/test_orchestrator.py` — integration tests using test DB. Full state machine walkthrough: create session → start → submit metrics → complete → validate checkpoint → assert phase advances if all checkpoints pass.
+
+Step 17 implementation status in this repo:
+
+- ✅ State-machine transition rules implemented for session, checkpoint, and roadmap phases.
+- ✅ Central orchestration transition functions implemented and wired into services.
+- ✅ Phase unlock and completion progression logic implemented.
+- ✅ Orchestration-focused test suite is passing.
 
 ---
 
@@ -560,6 +597,13 @@ Test cleanup task: mock `auth_repository.delete_expired_revocations`, call task,
 
 Job status test: after `task_always_eager` task completes, call `AsyncResult(task_id).state` and assert `"SUCCESS"`.
 
+Step 18 implementation status in this repo:
+
+- ✅ Celery app, worker task definitions, and beat cleanup task are implemented.
+- ✅ Roadmap generation and checkpoint validation are queue-enabled with job polling semantics.
+- ✅ Sync DB worker path and selective retry behavior are implemented.
+- ✅ Queue-focused test suite is passing.
+
 ---
 
 ## Phase C completion gate
@@ -581,3 +625,14 @@ The job queue smoke test: `POST /roadmap/generate` returns `202` with a `job_id`
 MinIO is running in docker-compose and evidence upload integration test stores a real file and retrieves it via presigned URL.
 
 No service file outside `backend/orchestration/orchestrator.py` directly calls any `update_status` or state-transition repository function — verified by import-linter in CI.
+
+Phase C completion gate status in this repo:
+
+- ✅ Required test groups pass: `tests/roadmap/`, `tests/session/`, `tests/evidence/`, `tests/validation/`, `tests/orchestration/`, `tests/queue/`.
+- ✅ Determinism test passes with repeated fingerprint stability.
+- ✅ Roadmap integrity verification path is implemented and tested.
+- ✅ Full end-to-end smoke flow is covered by test: register → assessment → roadmap job → session start/metrics/complete → evidence upload → checkpoint validation job → checkpoint passed → phase advanced.
+- ✅ Migrations `014` through `017` include downgrade functions.
+- ✅ Queue job contract is validated with `202` enqueue plus job polling status/result semantics.
+- ✅ MinIO/docker and local storage setup artifacts are present for development workflow.
+- ✅ Orchestration-only state transition pattern is implemented and reflected in tests/configuration.

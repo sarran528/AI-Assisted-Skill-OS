@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     redis_url: str
     celery_broker_url: str
     celery_result_backend: str
+    s3_bucket_name: str = "skillos-dev"
+    s3_region: str = "us-east-1"
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_endpoint_url: str | None = None
     jwt_private_key: str = ""
     jwt_public_key: str = ""
     jwt_kid: str = "local-1"
@@ -23,6 +28,7 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
+    embedding_batch_size: int = 100
     nhost_storage_endpoint: str = ""
     nhost_storage_bucket: str = ""
     nhost_storage_access_key: str = ""

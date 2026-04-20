@@ -15,6 +15,10 @@ warn_redundant_casts = true
 addopts = "--cov=backend --cov-fail-under=70"
 asyncio_mode = "auto"
 
+[tool.poe.tasks]
+index-rag = "python scripts/rag/pipeline.py --skill-docs-dir data/skill_docs"
+validate-rag = "python scripts/rag/validate_index.py"
+
 [tool.importlinter]
 root_package = "backend"
 
@@ -45,4 +49,16 @@ forbidden_modules = [
   "backend.validation",
   "backend.rag",
   "backend.auth",
+]
+
+[[tool.importlinter.contracts]]
+name = "orchestration-only"
+type = "forbidden"
+source_modules = [
+  "backend.session.service",
+  "backend.validation.service",
+  "backend.roadmap.service",
+]
+forbidden_modules = [
+  "backend.shared.db.repositories.session_repository.update_status",
 ]
