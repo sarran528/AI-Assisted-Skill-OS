@@ -11,6 +11,7 @@ from backend.shared.db.models.rag import RagChunk, RagConfig
 from backend.shared.db.models.roadmap import Roadmap
 from backend.shared.db.models.session import Session
 from backend.shared.db.models.skill_template import SkillTemplate
+from backend.shared.db.models.skill_research import SkillResearchObjectModel
 from backend.shared.db.models.token import RefreshToken, RevokedAccessToken
 from backend.shared.db.models.tip_log import TipLog
 from backend.shared.db.models.user import User
