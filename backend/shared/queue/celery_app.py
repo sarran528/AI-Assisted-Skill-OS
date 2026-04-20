@@ -6,13 +6,19 @@ celery_app = Celery(
     "skillos",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
+    include=["backend.shared.queue.tasks"],
 )
 
 celery_app.conf.update(
     task_acks_late=True,
     worker_concurrency=4,
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
     task_time_limit=120,
-    task_soft_time_limit=110,
-    task_default_retry_delay=10,
-    task_max_retries=3,
+    task_soft_time_limit=90,
+    worker_max_tasks_per_child=50,
 )
+
+# Import schedules after app creation so beat settings are registered.
+from backend.shared.queue import beat_schedule  # noqa: E402,F401

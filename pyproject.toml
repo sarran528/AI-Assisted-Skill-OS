@@ -46,3 +46,15 @@ forbidden_modules = [
   "backend.rag",
   "backend.auth",
 ]
+
+[[tool.importlinter.contracts]]
+name = "orchestration-only"
+type = "forbidden"
+source_modules = [
+  "backend.session.service",
+  "backend.validation.service",
+  "backend.roadmap.service",
+]
+forbidden_modules = [
+  "backend.shared.db.repositories.session_repository.update_status",
+]
