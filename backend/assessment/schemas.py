@@ -117,6 +117,10 @@ class LearningParameters(BaseModel):
     complexity_escalation_trigger: float
     plateau_detection_threshold: float
     stability_requirement_before_advance: float
+    
+    # Skill adjustment metadata
+    is_skill_adjusted: bool = False
+    skill_id: str | None = None
 
 
 class CognitiveProfile(BaseModel):

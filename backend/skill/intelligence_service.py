@@ -57,12 +57,12 @@ class SkillIntelligenceService:
         # Validate skill exists and is active
         skill_template = await self.skill_template_repo.get_active_template(skill_id)
         if not skill_template:
-            raise BusinessError("skill_not_found")
+            raise BusinessError("skill_not_found", f"Skill '{skill_id}' not found or not active")
 
         # Fetch latest baseline state (proves grounding was completed)
         baseline_state = await self.grounding_repo.get_latest_baseline(user_id, skill_id)
         if not baseline_state:
-            raise BusinessError("grounding_required")
+            raise BusinessError("grounding_required", f"User must complete grounding probes for skill '{skill_id}' before research generation")
 
         # Run four sequential LLM calls
         research_object = await compute_skill_research(profile, baseline_state, skill_template)

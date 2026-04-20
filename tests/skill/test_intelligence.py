@@ -96,7 +96,7 @@ async def test_compute_skill_research_all_calls_made():
         DEFAULT_SKILL_MODIFIERS,
     ]
 
-    with patch("backend.shared.llm.llm_call", new_callable=AsyncMock) as mock_llm:
+    with patch("backend.skill.intelligence.llm_call", new_callable=AsyncMock) as mock_llm:
         mock_llm.side_effect = mock_results
 
         result = await compute_skill_research(profile, baseline, skill)
@@ -133,7 +133,7 @@ async def test_compute_skill_research_returns_complete_object(
         DEFAULT_SKILL_MODIFIERS,
     ]
 
-    with patch("backend.shared.llm.llm_call", new_callable=AsyncMock) as mock_llm:
+    with patch("backend.skill.intelligence.llm_call", new_callable=AsyncMock) as mock_llm:
         mock_llm.side_effect = mock_results
 
         result = await compute_skill_research(
@@ -151,9 +151,24 @@ async def test_compute_skill_research_returns_complete_object(
 @pytest.mark.asyncio
 async def test_compute_skill_research_with_fallback_values():
     """Test that object is assembled even when LLM calls use fallbacks."""
-    profile = ProfileVector(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
+    profile = ProfileVector(
+        cognitive_capacity=0.5,
+        attention_stability=0.5,
+        learning_tolerance=0.5,
+        motor_baseline=0.5,
+        stress_resilience=0.5,
+        time_constraint=0.5,
+    )
     baseline = BaselineSkillState(
-        "test", uuid4(), 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, datetime.utcnow()
+        skill_id="test",
+        user_id=uuid4(),
+        exposure_score=0.5,
+        declarative_score=0.5,
+        confidence_score=0.5,
+        perceived_level=0.5,
+        actual_level=0.5,
+        confidence_bias=0.0,
+        created_at=datetime.utcnow(),
     )
     skill = MagicMock(spec=SkillTemplate)
     skill.skill_id = "test"
@@ -168,7 +183,7 @@ async def test_compute_skill_research_with_fallback_values():
         DEFAULT_SKILL_MODIFIERS,
     ]
 
-    with patch("backend.shared.llm.llm_call", new_callable=AsyncMock) as mock_llm:
+    with patch("backend.skill.intelligence.llm_call", new_callable=AsyncMock) as mock_llm:
         mock_llm.side_effect = mock_results
 
         result = await compute_skill_research(profile, baseline, skill)
@@ -282,7 +297,14 @@ async def test_service_raises_on_missing_skill():
             await service.generate_skill_research(
                 user_id=uuid4(),
                 skill_id="nonexistent",
-                profile=ProfileVector(0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                profile=ProfileVector(
+                    cognitive_capacity=0.5,
+                    attention_stability=0.5,
+                    learning_tolerance=0.5,
+                    motor_baseline=0.5,
+                    stress_resilience=0.5,
+                    time_constraint=0.5,
+                ),
             )
 
 
@@ -312,5 +334,12 @@ async def test_service_raises_on_missing_baseline():
                 await service.generate_skill_research(
                     user_id=uuid4(),
                     skill_id="test",
-                    profile=ProfileVector(0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                    profile=ProfileVector(
+                        cognitive_capacity=0.5,
+                        attention_stability=0.5,
+                        learning_tolerance=0.5,
+                        motor_baseline=0.5,
+                        stress_resilience=0.5,
+                        time_constraint=0.5,
+                    ),
                 )

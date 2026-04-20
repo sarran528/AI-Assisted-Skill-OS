@@ -301,7 +301,7 @@ class TestParametersCompleteness:
     """Verify all 33 parameters are computed."""
     
     def test_all_33_parameters_exist(self):
-        """All 33 parameters must be present in output (32 learning params + 1 metadata)."""
+        """All 35 fields must be present in output (32 learning params + 3 metadata)."""
         profile = ProfileVector(
             cognitive_capacity=0.5,
             attention_stability=0.5,
@@ -336,10 +336,14 @@ class TestParametersCompleteness:
             "adaptation_sensitivity", "risk_zone_trigger_level", "regression_policy_strength",
             "phase_transition_sensitivity", "complexity_escalation_trigger",
             "plateau_detection_threshold", "stability_requirement_before_advance",
+            # Skill adjustment metadata (2)
+            "is_skill_adjusted", "skill_id",
         }
         
         actual_fields = set(params.model_fields.keys())
-        # 32 learning parameters (A-H) expected
+        # 32 learning parameters (A-H) + 3 metadata fields
+        actual_fields = set(params.model_fields.keys())
+        # 32 learning parameters (A-H) + 3 metadata fields expected
         assert len(actual_fields) == len(expected_fields), f"Expected {len(expected_fields)} parameters, got {len(actual_fields)}"
         assert expected_fields == actual_fields, f"Missing or extra fields"
 

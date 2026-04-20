@@ -7,7 +7,18 @@ from pydantic import BaseModel, Field
 
 from backend.assessment.profile_vector import ProfileVector
 from backend.shared.db.models.skill_template import SkillTemplate
+from backend.shared.llm.gateway import llm_call
+from backend.shared.llm.prompts import (
+    build_feasibility_prompt,
+    build_risk_zone_prompt,
+    build_skill_modifier_prompt,
+    build_time_model_prompt,
+)
 from backend.shared.llm.schemas import (
+    DEFAULT_FEASIBILITY,
+    DEFAULT_RISK_ZONES,
+    DEFAULT_SKILL_MODIFIERS,
+    DEFAULT_TIME_MODEL,
     FeasibilityResult,
     RiskZoneResult,
     SkillModifierResult,
@@ -89,21 +100,6 @@ async def compute_skill_research(
     Raises:
         SystemError: If LLM calls fail unrecoverably
     """
-    # Import here to avoid circular imports
-    from backend.shared.llm.gateway import llm_call
-    from backend.shared.llm.prompts import (
-        build_feasibility_prompt,
-        build_risk_zone_prompt,
-        build_skill_modifier_prompt,
-        build_time_model_prompt,
-    )
-    from backend.shared.llm.schemas import (
-        DEFAULT_FEASIBILITY,
-        DEFAULT_RISK_ZONES,
-        DEFAULT_SKILL_MODIFIERS,
-        DEFAULT_TIME_MODEL,
-    )
-
     # Call 1: Feasibility analysis
     feasibility = await llm_call(
         prompt=build_feasibility_prompt(profile, template),
@@ -144,7 +140,7 @@ async def compute_skill_research(
     return SkillResearchObject.from_llm_results(
         skill_id=template.skill_id,
         user_id=baseline_state.user_id,
-        profile_version=profile.version,
+        profile_version=1,  # TODO: Track actual profile version once versioning is implemented
         feasibility=feasibility,
         risk_zones=risk_zones,
         time_model=time_model,
