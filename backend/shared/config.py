@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     llm_provider: str = "openai"
+    llm_model: str = "claude-sonnet-4-20250514"
+    llm_max_tokens: int = 1000
+    llm_temperature: float = 0.0
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
     nhost_storage_endpoint: str = ""

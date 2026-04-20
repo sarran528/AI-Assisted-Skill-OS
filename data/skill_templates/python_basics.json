@@ -1,0 +1,58 @@
+{
+  "skill_id": "python-basics",
+  "name": "Python Basics",
+  "domain": "programming",
+  "complexity_score": 0.55,
+  "structure": {
+    "phases": {
+      "syntax-and-fundamentals": {
+        "competencies": ["variables and data types", "operators", "control flow", "functions"],
+        "techniques": ["REPL exploration", "interactive debugging", "type hints", "docstrings"],
+        "checkpoints": ["write 5 functions with different return types", "create a program with conditionals and loops"]
+      },
+      "data-structures": {
+        "competencies": ["lists", "dictionaries", "sets", "tuples"],
+        "techniques": ["list comprehensions", "dictionary operations", "iteration patterns"],
+        "checkpoints": ["manipulate nested data structures", "implement a simple cache with dict"]
+      },
+      "oop-principles": {
+        "competencies": ["classes", "inheritance", "polymorphism", "encapsulation"],
+        "techniques": ["instance methods", "class methods", "special methods", "property decorators"],
+        "checkpoints": ["create a class hierarchy", "implement abstract patterns"]
+      },
+      "practical-projects": {
+        "competencies": ["file I/O", "error handling", "modules", "testing basics"],
+        "techniques": ["try-except patterns", "with statements", "pytest basics", "imports"],
+        "checkpoints": ["build a command-line tool", "write unit tests for your code"]
+      }
+    },
+    "grounding_probes": {
+      "recognition": [
+        "variables",
+        "for loops",
+        "functions",
+        "lists",
+        "dictionaries",
+        "classes",
+        "inheritance"
+      ],
+      "familiarity": [
+        {
+          "question": "What does a variable do in programming?",
+          "options": ["Performs calculations", "Stores data values", "Defines a function", "Creates a loop"],
+          "correct_index": 1
+        },
+        {
+          "question": "What is the purpose of a function?",
+          "options": ["Store data", "Repeat code blocks", "Group reusable code", "Create loops"],
+          "correct_index": 2
+        },
+        {
+          "question": "Which data structure is best for storing key-value pairs?",
+          "options": ["List", "Dictionary", "Tuple", "Set"],
+          "correct_index": 1
+        }
+      ]
+    }
+  }
+}

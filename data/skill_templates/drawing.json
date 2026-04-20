@@ -1,0 +1,51 @@
+{
+  "skill_id": "drawing",
+  "name": "Drawing",
+  "domain": "art",
+  "complexity_score": 0.65,
+  "structure": {
+    "phases": {
+      "fundamentals": {
+        "competencies": ["line control", "basic shapes", "proportions"],
+        "techniques": ["blind contour", "gesture drawing", "grid method"],
+        "checkpoints": ["produce 5 shapes within 5% proportion error", "complete 3 gesture drawings in 60 seconds each"]
+      },
+      "intermediate": {
+        "competencies": ["shading", "perspective", "composition"],
+        "techniques": ["hatching", "one-point perspective", "rule of thirds"],
+        "checkpoints": ["demonstrate 3 shading techniques on a sphere", "draw a room in one-point perspective"]
+      },
+      "advanced": {
+        "competencies": ["portrait rendering", "dynamic poses", "atmospheric perspective"],
+        "techniques": ["proportional face method", "value scale mastery", "foreshortening"],
+        "checkpoints": ["complete a detailed portrait study", "draw 5 figures in varied poses"]
+      }
+    },
+    "grounding_probes": {
+      "recognition": [
+        "blind contour drawing",
+        "gesture drawing",
+        "hatching",
+        "one-point perspective",
+        "foreshortening"
+      ],
+      "familiarity": [
+        {
+          "question": "What does 'value' mean in drawing?",
+          "options": ["Color temperature", "Lightness or darkness", "Line weight", "Texture"],
+          "correct_index": 1
+        },
+        {
+          "question": "What is the primary purpose of gesture drawing?",
+          "options": ["Creating finished artwork", "Capturing movement and form quickly", "Precise measurement", "Color mixing"],
+          "correct_index": 1
+        },
+        {
+          "question": "Which method helps with accurate proportions using a grid?",
+          "options": ["Blind contour", "Grid method", "Freehand estimation", "Tracing"],
+          "correct_index": 1
+        }
+      ]
+    }
+  }
+}
