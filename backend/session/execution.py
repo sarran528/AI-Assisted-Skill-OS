@@ -23,7 +23,7 @@ def should_generate_tip(
         return True
 
     metrics = session.metrics_captured or {}
-    retry_count = int(metrics.get("retry_count", 0) or 0)
+    retry_count = int(metrics.get("retry_count", metrics.get("retry", 0)) or 0)
     if retry_count > int(params.retry_limit):
         return True
 

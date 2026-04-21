@@ -7,7 +7,8 @@ from backend.shared.models import APIModel
 
 
 class SessionStartRequest(APIModel):
-    roadmap_id: UUID
+    roadmap_id: UUID | None = None
+    skill_id: str | None = None
     phase: str
     technique_id: str
     attempt_number: int = 1

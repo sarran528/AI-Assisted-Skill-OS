@@ -161,6 +161,7 @@ export function AssessmentView() {
     const metrics = computeLevelMetrics(levelState);
 
     submitLevelMutation.mutate({
+      session_id: sessionId,
       level,
       metrics: {
         accuracy: Math.round(metrics.accuracy * 100),
@@ -211,6 +212,7 @@ export function AssessmentView() {
 
         const metrics = computeLevelMetrics(generated);
         submitLevelMutation.mutate({
+          session_id: sessionId,
           level,
           metrics: {
             accuracy: Math.round(metrics.accuracy * 100),

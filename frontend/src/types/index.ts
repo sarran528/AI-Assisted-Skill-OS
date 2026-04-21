@@ -24,6 +24,7 @@ export interface AssessmentStartResponse {
 }
 
 export interface LevelSubmissionPayload {
+  session_id: string;
   level: number;
   metrics: {
     accuracy: number;

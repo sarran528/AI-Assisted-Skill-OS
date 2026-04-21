@@ -27,7 +27,7 @@ class RawTimeConstraint(BaseModel):
 
 class AssessmentSubmission(BaseModel):
     """Complete assessment submission for a single level."""
-    
+    session_id: UUID | None = Field(default=None, description="Assessment session identifier")
     level: int = Field(..., ge=1, le=6, description="Assessment level 1-6")
     metrics: RawMetrics
     time_constraint: RawTimeConstraint

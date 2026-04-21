@@ -28,6 +28,38 @@ ARTIFACT_KEYWORDS = ("produce", "draw", "create", "record", "write")
 NUMERIC_KEYWORDS = ("accuracy", "score", "percentage", "within")
 
 
+def _clamp_unit(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def _apply_modifiers(
+    params: LearningParameters,
+    confidence_bias: float,
+    technique_density_adjustment: float,
+    repetition_boost: float,
+) -> LearningParameters:
+    """Apply skill and confidence adjustments to learning parameters."""
+    adjusted_technique_density = _clamp_unit(
+        float(params.technique_density) + float(technique_density_adjustment)
+    )
+    adjusted_repetition = _clamp_unit(
+        float(params.repetition_intensity)
+        + float(repetition_boost)
+        + float(confidence_bias) * 0.15
+    )
+    adjusted_hint_threshold = _clamp_unit(
+        float(params.hint_activation_threshold) - float(confidence_bias) * 0.1
+    )
+
+    return params.model_copy(
+        update={
+            "technique_density": adjusted_technique_density,
+            "repetition_intensity": adjusted_repetition,
+            "hint_activation_threshold": adjusted_hint_threshold,
+        }
+    )
+
+
 def _build_phase_techniques(
     phase_data: dict,
     params: LearningParameters,
@@ -75,6 +107,13 @@ def generate_roadmap(
     phases_source = structure.get("phases", {})
     technique_defs = structure.get("technique_definitions", {})
 
+    adjusted_params = _apply_modifiers(
+        params=params,
+        confidence_bias=float(research.confidence_bias),
+        technique_density_adjustment=float(research.skill_modifiers.technique_density_adjustment),
+        repetition_boost=float(research.skill_modifiers.repetition_boost),
+    )
+
     phases: "OrderedDict[str, RoadmapPhase]" = OrderedDict()
 
     for phase_slug, phase_data in phases_source.items():
@@ -88,7 +127,7 @@ def generate_roadmap(
                 checkpoint_id=f"{phase_slug}_cp_{idx + 1}",
                 description=checkpoint,
                 evidence_type=_checkpoint_evidence_type(checkpoint),
-                threshold=float(params.checkpoint_rigidity),
+                threshold=float(adjusted_params.checkpoint_rigidity),
                 pass_criteria=checkpoint,
             )
             for idx, checkpoint in enumerate(checkpoints_source)
@@ -98,7 +137,7 @@ def generate_roadmap(
         phases[phase_slug] = RoadmapPhase(
             phase_slug=phase_slug,
             competencies=competencies,
-            techniques=_build_phase_techniques(phase_data, params, technique_defs),
+            techniques=_build_phase_techniques(phase_data, adjusted_params, technique_defs),
             checkpoints=checkpoints,
             estimated_weeks=estimated_weeks,
             status="locked",
