@@ -31,12 +31,12 @@ def _set_refresh_cookie(response: Response, raw_token: str) -> None:
         samesite="strict",
         secure=settings.app_env != "local",
         max_age=settings.jwt_refresh_ttl,
-        path="/auth",
+        path="/api/v1/auth",
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(COOKIE_NAME, path="/auth")
+    response.delete_cookie(COOKIE_NAME, path="/api/v1/auth")
 
 
 async def register_user(

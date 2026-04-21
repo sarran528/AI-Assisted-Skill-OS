@@ -1,0 +1,14 @@
+ImportError while loading conftest 'C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\tests\conftest.py'.
+tests\conftest.py:5: in <module>
+    from backend.main import app
+backend\main.py:12: in <module>
+    from backend.api.router import api_router
+backend\api\router.py:9: in <module>
+    from backend.roadmap.router import router as roadmap_router
+backend\roadmap\router.py:7: in <module>
+    from backend.roadmap.generator import verify_roadmap_integrity
+backend\roadmap\generator.py:17: in <module>
+    from backend.skill.intelligence import SkillResearchObject
+backend\skill\intelligence.py:10: in <module>
+    from backend.shared.llm.schemas import (
+E   ImportError: cannot import name 'FeasibilityResult' from 'backend.shared.llm.schemas' (C:\Users\Sarran\Documents\Skill os docs\AI-Assisted-Skill-OS\backend\shared\llm\schemas.py)

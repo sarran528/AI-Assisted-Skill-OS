@@ -1,7 +1,13 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env.local",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     app_env: str = "local"
     api_base_url: str = "http://localhost:8000"
     database_url: str
@@ -34,10 +40,6 @@ class Settings(BaseSettings):
     nhost_storage_access_key: str = ""
     nhost_storage_secret_key: str = ""
     cors_allowed_origins: str = "http://localhost:3000"
-
-    class Config:
-        env_file = ".env.local"
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()

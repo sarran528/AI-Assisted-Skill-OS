@@ -66,10 +66,60 @@ export interface SessionStartResponse {
   status: string;
 }
 
+export interface SessionCompleteResponse {
+  session_id: string;
+  passed: boolean;
+  tip_pending?: boolean;
+  completed_steps: string[];
+  failure_reason?: string;
+}
+
 export interface SessionMetricsPayload {
   session_id: string;
   accuracy: number;
   elapsed_seconds: number;
   errors: number;
   retry: number;
+}
+
+export interface EvidenceUploadResponse {
+  evidence_id: string;
+  session_id: string;
+  checkpoint_id: string;
+  artifact_url?: string;
+  mime_type?: string;
+  file_size_bytes: number;
+  validated: boolean;
+}
+
+export interface CheckpointValidationResponse {
+  passed: boolean;
+  reason: string;
+  session_id: string;
+  checkpoint_id: string;
+}
+
+export interface DoubtAnswerResponse {
+  answer: string;
+  confidence: "low" | "medium" | "high";
+  caveat?: string;
+  sources_used?: number;
+}
+
+export interface SupportResourceItem {
+  id: string;
+  doc_type: string;
+  snippet: string;
+  relevance: number;
+}
+
+export interface SupportResourcesResponse {
+  items: SupportResourceItem[];
+}
+
+export interface TipResponse {
+  available: boolean;
+  severity?: "minor" | "moderate" | "critical";
+  text?: string;
+  focus_step?: string;
 }

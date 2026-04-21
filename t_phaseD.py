@@ -3,77 +3,24 @@ from __future__ import annotations
 import asyncio
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
-from backend.shared.db.engine import SessionLocal, SyncSessionLocal
-from backend.shared.db.models import LearningParameter, RevokedAccessToken, Session
-from backend.shared.errors import BusinessError, SystemError
+from backend.shared.db.engine import SessionLocal
+from backend.shared.db.models import LearningParameter, Session
 from backend.shared.queue.celery_app import celery_app
-
+from backend.support.resource_service import get_resources
+from backend.support.tip_service import generate_tip
 
 
 @celery_app.task
 def placeholder_task() -> str:
     return "ok"
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=5)
-def generate_roadmap_task(self, user_id: str, skill_id: str) -> dict:
-    from backend.roadmap.service import sync_create_roadmap
-    try:
-
-        with SyncSessionLocal() as db:
-            result = sync_create_roadmap(db, UUID(user_id), skill_id)
-            return {"roadmap_id": str(result["id"]), "status": "completed"}
-    except BusinessError as exc:
-        return {
-            "status": "failed",
-            "error": exc.code,
-            "message": str(exc),
-            "context": exc.context,
-        }
-    except SystemError as exc:
-        return {
-            "status": "failed",
-            "error": "system_error",
-            "message": str(exc),
-            "context": exc.context,
-        }
-    except Exception as exc:  # pragma: no cover
-        if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc)
-        return {
-            "status": "failed",
-            "error": "max_retries_exceeded",
-            "message": str(exc),
-            "context": {},
-        }
-
-@celery_app.task(bind=True, max_retries=2, default_retry_delay=10)
-def validate_checkpoint_task(self, session_id: str, checkpoint_id: str) -> dict:
-    from backend.validation.service import sync_run_checkpoint_validation
-    try:
-
-        with SyncSessionLocal() as db:
-            result = sync_run_checkpoint_validation(db, UUID(session_id), checkpoint_id)
-            return {
-                "passed": bool(result.get("passed", False)),
-                "reason": result.get("reason"),
-                "status": "completed",
-            }
-    except Exception as exc:  # pragma: no cover
-        raise self.retry(exc=exc)
 
 @celery_app.task
-def cleanup_expired_tokens_task() -> None:
-    from datetime import datetime, timezone
+def generate_roadmap_task(job_id: str) -> str:
+    return job_id
 
-    with SyncSessionLocal() as db:
-        db.execute(
-            delete(RevokedAccessToken).where(
-                RevokedAccessToken.expires_at < datetime.now(timezone.utc)
-            )
-        )
-        db.commit()
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=5)
 def prefetch_resources_task(self, user_id: str, skill_id: str, phase: str) -> dict:
@@ -82,8 +29,8 @@ def prefetch_resources_task(self, user_id: str, skill_id: str, phase: str) -> di
     except Exception as exc:  # pragma: no cover - celery retry path
         raise self.retry(exc=exc)
 
+
 async def _prefetch_resources_async(user_id: str, skill_id: str, phase: str) -> dict:
-    from backend.support.resource_service import get_resources
     async with SessionLocal() as db:
         response = await get_resources(
             db=db,
@@ -93,6 +40,7 @@ async def _prefetch_resources_async(user_id: str, skill_id: str, phase: str) -> 
             current_user={"user": {"id": user_id}},
         )
     return {"resources": len(response.resources), "skill_id": skill_id, "phase": phase}
+
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=5)
 def generate_tip_task(
@@ -118,6 +66,7 @@ def generate_tip_task(
     except Exception as exc:  # pragma: no cover - celery retry path
         raise self.retry(exc=exc)
 
+
 async def _generate_tip_async(
     session_id: str,
     skill_id: str,
@@ -128,8 +77,6 @@ async def _generate_tip_async(
 ) -> dict:
     parsed_session_id = UUID(session_id)
     parsed_params_id = UUID(params_id)
-
-    from backend.support.tip_service import generate_tip
 
     async with SessionLocal() as db:
         session = await db.scalar(select(Session).where(Session.id == parsed_session_id))
