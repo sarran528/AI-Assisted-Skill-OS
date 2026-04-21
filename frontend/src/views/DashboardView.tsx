@@ -8,6 +8,12 @@ import { StatBlock } from "../components/brutal/StatBlock";
 import { useRecentSessions, useStartSession } from "../hooks/useSession";
 import { useSkills } from "../hooks/useSkills";
 import type { SkillItem } from "../types";
+import {
+  AssistantCard,
+  ResourceCard,
+  EvidenceHistoryCard,
+  LevelProgressCard,
+} from "../components";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -142,6 +148,11 @@ export function DashboardView() {
           <StatBlock value="--" label="learn tolerance" />
           <StatBlock value="--" label="stress resilience" />
         </div>
+
+        <AssistantCard />
+        <ResourceCard />
+        <EvidenceHistoryCard />
+        <LevelProgressCard />
 
         <BrutalCard className="dashboard-card" accent="yellow" testId="phase-progress-card">
           <h3>Phase Progress</h3>

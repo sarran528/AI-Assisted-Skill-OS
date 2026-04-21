@@ -4,3 +4,6 @@ export * from "./dashboard";
 export * from "./execution";
 export * from "./journal";
 export * from "./skill";
+export * from "./assistant";
+export * from "./resource";
+export * from "./history";
