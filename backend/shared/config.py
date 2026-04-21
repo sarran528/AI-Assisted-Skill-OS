@@ -10,10 +10,10 @@ class Settings(BaseSettings):
 
     app_env: str = "local"
     api_base_url: str = "http://localhost:8000"
-    database_url: str
-    redis_url: str
-    celery_broker_url: str
-    celery_result_backend: str
+    database_url: str = "sqlite+aiosqlite:///./skillos.db"
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "db+sqlite:///./celery_results.db"
     s3_bucket_name: str = "skillos-dev"
     s3_region: str = "us-east-1"
     s3_access_key_id: str = ""
