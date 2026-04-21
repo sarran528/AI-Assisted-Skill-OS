@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill OS Assessment Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+        
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .assessments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .assessment-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease-out;
+            animation-fill-mode: both;
+            cursor: pointer;
+        }
+        
+        .assessment-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .assessment-card.completed {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: #4CAF50;
+        }
+        
+        .assessment-card.in-progress {
+            background: rgba(255, 152, 0, 0.2);
+            border-color: #ff9800;
+        }
+        
+        .assessment-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .assessment-icon {
+            font-size: 36px;
+            margin-right: 15px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+        
+        .assessment-title {
+            flex: 1;
+        }
+        
+        .assessment-title h3 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .assessment-title p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .assessment-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-completed {
+            background: #4CAF50;
+        }
+        
+        .status-in-progress {
+            background: #ff9800;
+        }
+        
+        .assessment-score {
+            margin-left: auto;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .progress-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .progress-header h2 {
+            font-size: 24px;
+        }
+        
+        .overall-progress {
+            font-size: 32px;
+            font-weight: bold;
+            color: #FFD700;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .results-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .results-header h2 {
+            font-size: 24px;
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .export-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .result-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .result-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+        
+        .result-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #FFD700;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+        
+        .assessment-frame {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 10px;
+            background: white;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .assessment-card:nth-child(1) { animation-delay: 0.1s; }
+        .assessment-card:nth-child(2) { animation-delay: 0.2s; }
+        .assessment-card:nth-child(3) { animation-delay: 0.3s; }
+        .assessment-card:nth-child(4) { animation-delay: 0.4s; }
+        .assessment-card:nth-child(5) { animation-delay: 0.5s; }
+        .assessment-card:nth-child(6) { animation-delay: 0.6s; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Skill OS Assessment Dashboard</h1>
+            <p>Complete all 6 cognitive assessments to generate your comprehensive skill profile</p>
+        </div>
+        
+        <div class="assessments-grid">
+            <div class="assessment-card" data-assessment="cognitive" onclick="openAssessment('cognitive')">
+                <div class="assessment-header">
+                    <div class="assessment-icon">🧠</div>
+                    <div class="assessment-title">
+                        <h3>Cognitive Capacity</h3>
+                        <p>Go/No-Go Response Test</p>
+                    </div>
+                </div>
+                <div class="assessment-status">
+                    <span class="status-badge status-pending">Pending</span>
+                    <span class="assessment-score">--</span>
+                </div>
+            </div>
+            
+            <div class="assessment-card" data-assessment="attention" onclick="openAssessment('attention')">
+                <div class="assessment-header">
+                    <div class="assessment-icon">🎯</div>
+                    <div class="assessment-title">
+                        <h3>Attention Stability</h3>
+                        <p>Flanker Task Test</p>
+                    </div>
+                </div>
+                <div class="assessment-status">
+                    <span class="status-badge status-pending">Pending</span>
+                    <span class="assessment-score">--</span>
+                </div>
+            </div>
+            
+            <div class="assessment-card" data-assessment="learning" onclick="openAssessment('learning')">
+                <div class="assessment-header">
+                    <div class="assessment-icon">🔄</div>
+                    <div class="assessment-title">
+                        <h3>Learning Tolerance</h3>
+                        <p>Pattern Switch Survival</p>
+                    </div>
+                </div>
+                <div class="assessment-status">
+                    <span class="status-badge status-pending">Pending</span>
+                    <span class="assessment-score">--</span>
+                </div>
+            </div>
+            
+            <div class="assessment-card" data-assessment="motor" onclick="openAssessment('motor')">
+                <div class="assessment-header">
+                    <div class="assessment-icon">⚡</div>
+                    <div class="assessment-title">
+                        <h3>Motor Baseline</h3>
+                        <p>Rapid Tap Reflex</p>
+                    </div>
+                </div>
+                <div class="assessment-status">
+                    <span class="status-badge status-pending">Pending</span>
+                    <span class="assessment-score">--</span>
+                </div>
+            </div>
+            
+            <div class="assessment-card" data-assessment="stress" onclick="openAssessment('stress')">
+                <div class="assessment-header">
+                    <div class="assessment-icon">💪</div>
+                    <div class="assessment-title">
+                        <h3>Stress Resilience</h3>
+                        <p>Countdown Challenge</p>
+                    </div>
+                </div>
+                <div class="assessment-status">
+                    <span class="status-badge status-pending">Pending</span>
+                    <span class="assessment-score">--</span>
+                </div>
+            </div>
+            
+            <div class="assessment-card" data-assessment="time" onclick="openAssessment('time')">
+                <div class="assessment-header">
+                    <div class="assessment-icon">⏰</div>
+                    <div class="assessment-title">
+                        <h3>Time Constraint</h3>
+                        <p>Time Budget Builder</p>
+                    </div>
+                </div>
+                <div class="assessment-status">
+                    <span class="status-badge status-pending">Pending</span>
+                    <span class="assessment-score">--</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="progress-section">
+            <div class="progress-header">
+                <h2>Overall Progress</h2>
+                <div class="overall-progress">0/6</div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%">0%</div>
+            </div>
+        </div>
+        
+        <div class="results-section" id="results-section" style="display: none;">
+            <div class="results-header">
+                <h2>Assessment Results</h2>
+                <button class="export-btn" onclick="exportResults()">Export Results</button>
+            </div>
+            <div class="results-grid" id="results-grid">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="assessment-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Assessment</div>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <iframe class="assessment-frame" id="assessment-frame"></iframe>
+        </div>
+    </div>
+
+    <script>
+        class AssessmentDashboard {
+            constructor() {
+                this.assessments = {
+                    cognitive: {
+                        file: 'test1_go_nogo.html',
+                        title: 'Cognitive Capacity - Go/No-Go Test',
+                        completed: false,
+                        score: null,
+                        results: null
+                    },
+                    attention: {
+                        file: 'test2_flanker.html',
+                        title: 'Attention Stability - Flanker Task',
+                        completed: false,
+                        score: null,
+                        results: null
+                    },
+                    learning: {
+                        file: 'test3_pattern_switch.html',
+                        title: 'Learning Tolerance - Pattern Switch',
+                        completed: false,
+                        score: null,
+                        results: null
+                    },
+                    motor: {
+                        file: 'test4_rapid_tap.html',
+                        title: 'Motor Baseline - Rapid Tap',
+                        completed: false,
+                        score: null,
+                        results: null
+                    },
+                    stress: {
+                        file: 'test5_countdown_challenge.html',
+                        title: 'Stress Resilience - Countdown',
+                        completed: false,
+                        score: null,
+                        results: null
+                    },
+                    time: {
+                        file: 'test6_time_budget.html',
+                        title: 'Time Constraint - Budget Builder',
+                        completed: false,
+                        score: null,
+                        results: null
+                    }
+                };
+                
+                this.currentAssessment = null;
+                this.loadProgress();
+                this.updateUI();
+            }
+            
+            openAssessment(type) {
+                this.currentAssessment = type;
+                const assessment = this.assessments[type];
+                
+                document.getElementById('modal-title').textContent = assessment.title;
+                document.getElementById('assessment-frame').src = assessment.file;
+                document.getElementById('assessment-modal').style.display = 'block';
+                
+                // Mark as in progress
+                this.markInProgress(type);
+            }
+            
+            markInProgress(type) {
+                const card = document.querySelector(`[data-assessment="${type}"]`);
+                const statusBadge = card.querySelector('.status-badge');
+                
+                card.classList.add('in-progress');
+                statusBadge.textContent = 'In Progress';
+                statusBadge.className = 'status-badge status-in-progress';
+                
+                this.saveProgress();
+            }
+            
+            markCompleted(type, results) {
+                const assessment = this.assessments[type];
+                const card = document.querySelector(`[data-assessment="${type}"]`);
+                const statusBadge = card.querySelector('.status-badge');
+                const scoreElement = card.querySelector('.assessment-score');
+                
+                assessment.completed = true;
+                assessment.results = results;
+                assessment.score = Math.round(results.accuracy * 100);
+                
+                card.classList.remove('in-progress');
+                card.classList.add('completed');
+                statusBadge.textContent = 'Completed';
+                statusBadge.className = 'status-badge status-completed';
+                scoreElement.textContent = `${assessment.score}%`;
+                
+                this.updateProgress();
+                this.saveProgress();
+                
+                // Check if all assessments are completed
+                if (this.getAllCompleted()) {
+                    this.showResults();
+                }
+            }
+            
+            getAllCompleted() {
+                return Object.values(this.assessments).every(a => a.completed);
+            }
+            
+            updateProgress() {
+                const completed = Object.values(this.assessments).filter(a => a.completed).length;
+                const total = Object.keys(this.assessments).length;
+                const percentage = (completed / total) * 100;
+                
+                document.querySelector('.overall-progress').textContent = `${completed}/${total}`;
+                const progressFill = document.getElementById('progress-fill');
+                progressFill.style.width = `${percentage}%`;
+                progressFill.textContent = `${Math.round(percentage)}%`;
+            }
+            
+            updateUI() {
+                Object.keys(this.assessments).forEach(type => {
+                    const assessment = this.assessments[type];
+                    const card = document.querySelector(`[data-assessment="${type}"]`);
+                    const statusBadge = card.querySelector('.status-badge');
+                    const scoreElement = card.querySelector('.assessment-score');
+                    
+                    if (assessment.completed) {
+                        card.classList.add('completed');
+                        statusBadge.textContent = 'Completed';
+                        statusBadge.className = 'status-badge status-completed';
+                        scoreElement.textContent = `${assessment.score}%`;
+                    }
+                });
+                
+                this.updateProgress();
+                
+                if (this.getAllCompleted()) {
+                    this.showResults();
+                }
+            }
+            
+            showResults() {
+                const resultsSection = document.getElementById('results-section');
+                const resultsGrid = document.getElementById('results-grid');
+                
+                resultsSection.style.display = 'block';
+                resultsGrid.innerHTML = '';
+                
+                // Calculate overall metrics
+                const completedAssessments = Object.values(this.assessments).filter(a => a.completed);
+                const avgAccuracy = completedAssessments.reduce((sum, a) => sum + a.results.accuracy, 0) / completedAssessments.length;
+                const avgResponseTime = completedAssessments.reduce((sum, a) => sum + a.results.mean_response_time, 0) / completedAssessments.length;
+                
+                const results = [
+                    { label: 'Overall Accuracy', value: `${Math.round(avgAccuracy * 100)}%` },
+                    { label: 'Avg Response Time', value: `${Math.round(avgResponseTime)}ms` },
+                    { label: 'Assessments Completed', value: `${completedAssessments.length}/6` },
+                    { label: 'Cognitive Score', value: this.assessments.cognitive.score ? `${this.assessments.cognitive.score}%` : '--' },
+                    { label: 'Attention Score', value: this.assessments.attention.score ? `${this.assessments.attention.score}%` : '--' },
+                    { label: 'Learning Score', value: this.assessments.learning.score ? `${this.assessments.learning.score}%` : '--' }
+                ];
+                
+                results.forEach(result => {
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'result-card';
+                    resultCard.innerHTML = `
+                        <div class="result-label">${result.label}</div>
+                        <div class="result-value">${result.value}</div>
+                    `;
+                    resultsGrid.appendChild(resultCard);
+                });
+            }
+            
+            exportResults() {
+                const completedAssessments = Object.values(this.assessments).filter(a => a.completed);
+                const exportData = {
+                    timestamp: new Date().toISOString(),
+                    completedAssessments: completedAssessments.length,
+                    totalAssessments: 6,
+                    results: {}
+                };
+                
+                completedAssessments.forEach(assessment => {
+                    const type = Object.keys(this.assessments).find(key => this.assessments[key] === assessment);
+                    exportData.results[type] = assessment.results;
+                });
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `skill-os-assessment-results-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            saveProgress() {
+                const progress = {};
+                Object.keys(this.assessments).forEach(type => {
+                    const assessment = this.assessments[type];
+                    progress[type] = {
+                        completed: assessment.completed,
+                        score: assessment.score
+                    };
+                });
+                localStorage.setItem('skill-os-progress', JSON.stringify(progress));
+            }
+            
+            loadProgress() {
+                const saved = localStorage.getItem('skill-os-progress');
+                if (saved) {
+                    const progress = JSON.parse(saved);
+                    Object.keys(progress).forEach(type => {
+                        if (this.assessments[type]) {
+                            this.assessments[type].completed = progress[type].completed;
+                            this.assessments[type].score = progress[type].score;
+                        }
+                    });
+                }
+            }
+        }
+        
+        let dashboard;
+        
+        function openAssessment(type) {
+            dashboard.openAssessment(type);
+        }
+        
+        function closeModal() {
+            document.getElementById('assessment-modal').style.display = 'none';
+            document.getElementById('assessment-frame').src = '';
+        }
+        
+        function exportResults() {
+            dashboard.exportResults();
+        }
+        
+        // Listen for messages from assessment frames
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'assessment-complete') {
+                if (dashboard.currentAssessment) {
+                    dashboard.markCompleted(dashboard.currentAssessment, event.data.results);
+                    closeModal();
+                }
+            }
+        });
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            dashboard = new AssessmentDashboard();
+        });
+        
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            const modal = document.getElementById('assessment-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>

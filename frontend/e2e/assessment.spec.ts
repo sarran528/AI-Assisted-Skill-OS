@@ -16,9 +16,7 @@ test("assessment view supports flexible level flow and completion", async ({ pag
 
   await page.getByTestId("level-card-3").click();
   await expect(page.locator("text=Level 3/6")).toBeVisible();
-
-  await page.getByTestId("submit-response").click();
-  await expect(page.locator("text=Question 2 / 10")).toBeVisible();
+  await expect(page.getByTestId("assessment-task-heading")).toContainText("Pattern switch");
 
   await quickCompleteAssessment(page);
   await expect(page).toHaveURL("/dashboard");

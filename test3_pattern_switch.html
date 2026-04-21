@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern Switch Survival - Learning Tolerance Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .rule-display {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 16px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .game-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        
+        .target {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            animation: spawn 0.3s ease-out;
+        }
+        
+        @keyframes spawn {
+            from {
+                transform: scale(0) rotate(0deg);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) rotate(360deg);
+                opacity: 1;
+            }
+        }
+        
+        .target:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .target.circle {
+            border-radius: 50%;
+        }
+        
+        .target.square {
+            border-radius: 10px;
+        }
+        
+        .target.blue { background: linear-gradient(135deg, #667eea, #4c51bf); }
+        .target.red { background: linear-gradient(135deg, #f56565, #e53e3e); }
+        .target.green { background: linear-gradient(135deg, #48bb78, #38a169); }
+        .target.yellow { background: linear-gradient(135deg, #ed8936, #dd6b20); }
+        
+        .target.correct {
+            animation: correctHit 0.5s ease-out;
+        }
+        
+        @keyframes correctHit {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        
+        .target.incorrect {
+            animation: incorrectHit 0.5s ease-out;
+        }
+        
+        @keyframes incorrectHit {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(0.8) rotate(180deg); opacity: 0.5; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+        
+        .rule-change-banner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            animation: bannerAppear 0.5s ease-out;
+        }
+        
+        @keyframes bannerAppear {
+            from {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle 1s ease-out forwards;
+        }
+        
+        @keyframes particle {
+            to {
+                transform: translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
+        }
+        
+        .instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 600px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .instructions h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+            font-size: 32px;
+        }
+        
+        .instructions p {
+            margin: 15px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        
+        .instructions button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .instructions button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .results {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: left;
+            max-width: 800px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .results h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+            text-align: center;
+        }
+        
+        .results pre {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        
+        .results button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .results button:hover {
+            transform: scale(1.05);
+        }
+        
+        .combo-indicator {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .difficulty-indicator {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .score-popup {
+            position: absolute;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: scorePopup 1s ease-out forwards;
+        }
+        
+        @keyframes scorePopup {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-50px) scale(1.5);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="stats">
+                <div class="stat-item">Score: <span id="score">0</span></div>
+                <div class="stat-item">Level: <span id="level">1</span></div>
+            </div>
+            <div class="rule-display" id="rule-display">Click BLUE targets</div>
+            <div class="stats">
+                <div class="stat-item">Accuracy: <span id="accuracy">100%</span></div>
+                <div class="stat-item">Time: <span id="time">0:00</span></div>
+            </div>
+        </div>
+        
+        <div class="game-area" id="game-area">
+            <div class="instructions" id="instructions">
+                <h2>Pattern Switch Survival</h2>
+                <p>🎯 <strong>Objective:</strong> Survive by following the current rule!</p>
+                <p>📋 <strong>Rules:</strong> Click targets that match the current rule (color or shape)</p>
+                <p>⚡ <strong>Challenge:</strong> Rules change every few correct hits!</p>
+                <p>🏆 <strong>Survival:</strong> Game speeds up as you progress!</p>
+                <p>❌ <strong>Avoid:</strong> Don't click targets that don't match the rule!</p>
+                <button onclick="startGame()">Start Survival</button>
+            </div>
+            
+            <div class="results hidden" id="results">
+                <h2>Survival Complete!</h2>
+                <pre id="results-json"></pre>
+                <button onclick="location.reload()">Play Again</button>
+            </div>
+            
+            <div class="combo-indicator hidden" id="combo-indicator">Combo x<span id="combo">0</span></div>
+            <div class="difficulty-indicator hidden" id="difficulty-indicator">Speed: <span id="speed">Normal</span></div>
+        </div>
+    </div>
+
+    <script>
+        class PatternSwitchSurvival {
+            constructor() {
+                this.gameArea = document.getElementById('game-area');
+                this.ruleDisplay = document.getElementById('rule-display');
+                this.scoreEl = document.getElementById('score');
+                this.levelEl = document.getElementById('level');
+                this.accuracyEl = document.getElementById('accuracy');
+                this.timeEl = document.getElementById('time');
+                
+                this.score = 0;
+                this.level = 1;
+                this.hits = 0;
+                this.misses = 0;
+                this.correctHits = 0;
+                this.combo = 0;
+                this.maxCombo = 0;
+                
+                this.rules = [
+                    { type: 'color', value: 'blue', text: 'Click BLUE targets' },
+                    { type: 'color', value: 'red', text: 'Click RED targets' },
+                    { type: 'color', value: 'green', text: 'Click GREEN targets' },
+                    { type: 'color', value: 'yellow', text: 'Click YELLOW targets' },
+                    { type: 'shape', value: 'circle', text: 'Click CIRCLE targets' },
+                    { type: 'shape', value: 'square', text: 'Click SQUARE targets' }
+                ];
+                
+                this.currentRule = null;
+                this.targets = [];
+                this.spawnInterval = 2000;
+                this.targetLifetime = 3000;
+                this.ruleChangeThreshold = 5;
+                this.hitsSinceRuleChange = 0;
+                
+                this.gameStartTime = null;
+                this.gameTimer = null;
+                this.spawnTimer = null;
+                
+                this.results = {
+                    ruleChanges: 0,
+                    errorsPerSwitch: [],
+                    adaptationQuality: [],
+                    impulseRate: 0,
+                    persistenceAfterMistakes: 0,
+                    trialData: []
+                };
+                
+                this.lastErrorTime = 0;
+                this.consecutiveErrors = 0;
+                this.maxConsecutiveErrors = 0;
+            }
+            
+            start() {
+                document.getElementById('instructions').classList.add('hidden');
+                document.getElementById('combo-indicator').classList.remove('hidden');
+                document.getElementById('difficulty-indicator').classList.remove('hidden');
+                
+                this.gameStartTime = performance.now();
+                this.selectNewRule();
+                this.startGameTimer();
+                this.startSpawning();
+            }
+            
+            selectNewRule() {
+                const previousRule = this.currentRule;
+                do {
+                    this.currentRule = this.rules[Math.floor(Math.random() * this.rules.length)];
+                } while (previousRule && this.currentRule.type === previousRule.type && this.currentRule.value === previousRule.value);
+                
+                this.ruleDisplay.textContent = this.currentRule.text;
+                this.showRuleChangeBanner();
+                this.hitsSinceRuleChange = 0;
+                
+                if (previousRule) {
+                    this.results.ruleChanges++;
+                    this.results.errorsPerSwitch.push(this.consecutiveErrors);
+                    this.consecutiveErrors = 0;
+                }
+            }
+            
+            showRuleChangeBanner() {
+                const banner = document.createElement('div');
+                banner.className = 'rule-change-banner';
+                banner.innerHTML = `
+                    <div>🔄 RULE CHANGE! 🔄</div>
+                    <div style="font-size: 20px; margin-top: 10px;">${this.currentRule.text}</div>
+                `;
+                this.gameArea.appendChild(banner);
+                
+                setTimeout(() => {
+                    banner.remove();
+                }, 2000);
+            }
+            
+            startGameTimer() {
+                this.gameTimer = setInterval(() => {
+                    const elapsed = Math.floor((performance.now() - this.gameStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    this.timeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }, 100);
+            }
+            
+            startSpawning() {
+                const spawn = () => {
+                    if (this.shouldEndGame()) {
+                        this.endGame();
+                        return;
+                    }
+                    this.spawnTarget();
+                    this.spawnTimer = setTimeout(spawn, this.spawnInterval);
+                };
+                spawn();
+            }
+            
+            shouldEndGame() {
+                return this.level > 10 || (this.misses > 20 && this.misses > this.hits * 2);
+            }
+            
+            spawnTarget() {
+                const colors = ['blue', 'red', 'green', 'yellow'];
+                const shapes = ['circle', 'square'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const shape = shapes[Math.floor(Math.random() * shapes.length)];
+                
+                const target = document.createElement('div');
+                target.className = `target ${shape} ${color}`;
+                
+                const size = 60 + Math.random() * 40;
+                target.style.width = `${size}px`;
+                target.style.height = `${size}px`;
+                
+                const maxX = this.gameArea.offsetWidth - size;
+                const maxY = this.gameArea.offsetHeight - size - 100;
+                target.style.left = `${Math.random() * maxX}px`;
+                target.style.top = `${100 + Math.random() * maxY}px`;
+                
+                const targetData = {
+                    element: target,
+                    color: color,
+                    shape: shape,
+                    spawnTime: performance.now(),
+                    correct: this.isCorrectTarget(color, shape)
+                };
+                
+                target.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.handleTargetClick(targetData);
+                });
+                
+                this.gameArea.appendChild(target);
+                this.targets.push(targetData);
+                
+                // Auto-remove target after lifetime
+                setTimeout(() => {
+                    if (target.parentNode) {
+                        target.remove();
+                        this.targets = this.targets.filter(t => t !== targetData);
+                        if (targetData.correct) {
+                            this.handleMissedTarget();
+                        }
+                    }
+                }, this.targetLifetime);
+            }
+            
+            isCorrectTarget(color, shape) {
+                if (this.currentRule.type === 'color') {
+                    return color === this.currentRule.value;
+                } else {
+                    return shape === this.currentRule.value;
+                }
+            }
+            
+            handleTargetClick(targetData) {
+                const responseTime = performance.now() - targetData.spawnTime;
+                
+                if (targetData.correct) {
+                    this.handleCorrectHit(targetData, responseTime);
+                } else {
+                    this.handleIncorrectHit(targetData, responseTime);
+                }
+                
+                this.createParticles(targetData.element);
+                targetData.element.remove();
+                this.targets = this.targets.filter(t => t !== targetData);
+            }
+            
+            handleCorrectHit(targetData, responseTime) {
+                this.hits++;
+                this.correctHits++;
+                this.hitsSinceRuleChange++;
+                this.combo++;
+                this.maxCombo = Math.max(this.maxCombo, this.combo);
+                
+                const points = Math.max(10, 50 - Math.floor(responseTime / 100));
+                this.score += points * (1 + Math.floor(this.combo / 5));
+                
+                targetData.element.classList.add('correct');
+                this.showScorePopup(targetData.element, `+${points}`);
+                
+                this.results.trialData.push({
+                    type: 'correct_hit',
+                    responseTime: responseTime,
+                    rule: this.currentRule,
+                    combo: this.combo,
+                    points: points
+                });
+                
+                // Check for rule change
+                if (this.hitsSinceRuleChange >= this.ruleChangeThreshold) {
+                    this.selectNewRule();
+                }
+                
+                // Level progression
+                if (this.correctHits % 10 === 0) {
+                    this.levelUp();
+                }
+                
+                this.updateStats();
+            }
+            
+            handleIncorrectHit(targetData, responseTime) {
+                this.misses++;
+                this.combo = 0;
+                this.consecutiveErrors++;
+                this.maxConsecutiveErrors = Math.max(this.maxConsecutiveErrors, this.consecutiveErrors);
+                
+                this.score = Math.max(0, this.score - 20);
+                
+                targetData.element.classList.add('incorrect');
+                this.showScorePopup(targetData.element, '-20', '#ff4444');
+                
+                this.lastErrorTime = performance.now();
+                
+                this.results.trialData.push({
+                    type: 'incorrect_hit',
+                    responseTime: responseTime,
+                    rule: this.currentRule,
+                    consecutiveErrors: this.consecutiveErrors
+                });
+                
+                this.updateStats();
+            }
+            
+            handleMissedTarget() {
+                this.misses++;
+                this.combo = 0;
+                this.updateStats();
+            }
+            
+            levelUp() {
+                this.level++;
+                this.spawnInterval = Math.max(500, this.spawnInterval - 150);
+                this.targetLifetime = Math.max(1500, this.targetLifetime - 100);
+                this.ruleChangeThreshold = Math.max(3, this.ruleChangeThreshold - 1);
+                
+                this.updateDifficultyDisplay();
+            }
+            
+            updateDifficultyDisplay() {
+                const speeds = ['Normal', 'Fast', 'Very Fast', 'Extreme', 'Insane'];
+                const speedIndex = Math.min(speeds.length - 1, Math.floor((this.level - 1) / 2));
+                document.getElementById('speed').textContent = speeds[speedIndex];
+            }
+            
+            createParticles(element) {
+                const rect = element.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                for (let i = 0; i < 10; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = `${centerX}px`;
+                    particle.style.top = `${centerY}px`;
+                    
+                    const angle = (Math.PI * 2 * i) / 10;
+                    const velocity = 50 + Math.random() * 50;
+                    particle.style.setProperty('--tx', `${Math.cos(angle) * velocity}px`);
+                    particle.style.setProperty('--ty', `${Math.sin(angle) * velocity}px`);
+                    
+                    document.body.appendChild(particle);
+                    
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+            
+            showScorePopup(element, text, color = '#4CAF50') {
+                const popup = document.createElement('div');
+                popup.className = 'score-popup';
+                popup.textContent = text;
+                popup.style.color = color;
+                
+                const rect = element.getBoundingClientRect();
+                popup.style.left = `${rect.left + rect.width / 2}px`;
+                popup.style.top = `${rect.top}px`;
+                
+                document.body.appendChild(popup);
+                
+                setTimeout(() => popup.remove(), 1000);
+            }
+            
+            updateStats() {
+                this.scoreEl.textContent = this.score;
+                this.levelEl.textContent = this.level;
+                
+                const accuracy = this.hits + this.misses > 0 ? (this.hits / (this.hits + this.misses) * 100).toFixed(1) : 100;
+                this.accuracyEl.textContent = `${accuracy}%`;
+                
+                document.getElementById('combo').textContent = this.combo;
+                
+                if (this.combo >= 5) {
+                    document.getElementById('combo-indicator').style.background = 'rgba(76, 175, 80, 0.7)';
+                } else if (this.combo >= 3) {
+                    document.getElementById('combo-indicator').style.background = 'rgba(255, 193, 7, 0.7)';
+                } else {
+                    document.getElementById('combo-indicator').style.background = 'rgba(0, 0, 0, 0.5)';
+                }
+            }
+            
+            calculateMetrics() {
+                const totalTrials = this.hits + this.misses;
+                const accuracy = totalTrials > 0 ? this.hits / totalTrials : 0;
+                
+                // Mean response time (average of correct hits)
+                const correctHits = this.results.trialData.filter(t => t.type === 'correct_hit');
+                const meanResponseTime = correctHits.length > 0 
+                    ? correctHits.reduce((sum, t) => sum + t.responseTime, 0) / correctHits.length 
+                    : 0;
+                
+                // Response time variance
+                const rtVariance = correctHits.length > 1
+                    ? correctHits.reduce((sum, t) => sum + Math.pow(t.responseTime - meanResponseTime, 2), 0) / (correctHits.length - 1)
+                    : 0;
+                
+                // Performance decay (compare early vs late performance)
+                const halfway = Math.floor(correctHits.length / 2);
+                const earlyHits = correctHits.slice(0, halfway);
+                const lateHits = correctHits.slice(halfway);
+                
+                const earlyAvg = earlyHits.length > 0 ? earlyHits.reduce((sum, t) => sum + t.responseTime, 0) / earlyHits.length : 0;
+                const lateAvg = lateHits.length > 0 ? lateHits.reduce((sum, t) => sum + t.responseTime, 0) / lateHits.length : 0;
+                const performanceDecay = earlyAvg > 0 ? (lateAvg - earlyAvg) / earlyAvg : 0;
+                
+                // Retry depth (inverse of accuracy)
+                const retryDepth = 1 - accuracy;
+                
+                // Dropout depth index (miss rate)
+                const dropoutDepthIndex = 1 - accuracy;
+                
+                // Recovery slope (ability to recover after errors)
+                const errorTrials = this.results.trialData.filter((t, i) => 
+                    i > 0 && this.results.trialData[i-1].type === 'incorrect_hit' && t.type === 'correct_hit'
+                );
+                const totalErrors = this.results.trialData.filter(t => t.type === 'incorrect_hit').length;
+                const recoverySlope = totalErrors > 0 ? errorTrials.length / totalErrors : 0;
+                
+                // Learning tolerance specific metrics
+                const adaptationQuality = this.results.errorsPerSwitch.length > 0
+                    ? 1 - (this.results.errorsPerSwitch.reduce((a, b) => a + b, 0) / this.results.errorsPerSwitch.length / 10)
+                    : 1;
+                
+                const impulseRate = totalTrials > 0 ? this.misses / totalTrials : 0;
+                
+                const persistenceAfterMistakes = this.maxConsecutiveErrors > 0 ? 1 / this.maxConsecutiveErrors : 1;
+                
+                return {
+                    accuracy: accuracy,
+                    mean_response_time: meanResponseTime,
+                    response_time_variance: rtVariance,
+                    performance_decay: performanceDecay,
+                    retry_depth: retryDepth,
+                    dropout_depth_index: dropoutDepthIndex,
+                    recovery_slope: recoverySlope,
+                    raw: {
+                        total_trials: totalTrials,
+                        hits: this.hits,
+                        misses: this.misses,
+                        score: this.score,
+                        level: this.level,
+                        max_combo: this.maxCombo,
+                        rule_changes: this.results.ruleChanges,
+                        errors_per_switch: this.results.errorsPerSwitch,
+                        adaptation_quality: adaptationQuality,
+                        impulse_rate: impulseRate,
+                        persistence_after_mistakes: persistenceAfterMistakes,
+                        max_consecutive_errors: this.maxConsecutiveErrors,
+                        trial_data: this.results.trialData
+                    }
+                };
+            }
+            
+            endGame() {
+                clearInterval(this.gameTimer);
+                clearTimeout(this.spawnTimer);
+                
+                // Clear remaining targets
+                this.targets.forEach(target => {
+                    if (target.element.parentNode) {
+                        target.element.remove();
+                    }
+                });
+                
+                const metrics = this.calculateMetrics();
+                document.getElementById('results').classList.remove('hidden');
+                document.getElementById('results-json').textContent = JSON.stringify(metrics, null, 2);
+                
+                // Store results
+                window.testResults = metrics;
+                console.log('Pattern Switch Survival Results:', metrics);
+                
+                // Send results to parent dashboard if in iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'assessment-complete',
+                        results: metrics
+                    }, '*');
+                }
+            }
+        }
+        
+        let game;
+        
+        function startGame() {
+            game = new PatternSwitchSurvival();
+            game.start();
+        }
+    </script>
+</body>
+</html>

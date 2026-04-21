@@ -67,6 +67,14 @@ export interface SessionStartResponse {
   status: string;
 }
 
+export interface SessionListItem {
+  session_id: string;
+  status: string;
+  phase: string;
+  score: number | null;
+  created_at?: string;
+}
+
 export interface SessionCompleteResponse {
   session_id: string;
   passed: boolean;

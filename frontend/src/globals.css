@@ -204,7 +204,7 @@ h3,
 
 .skill-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -215,13 +215,24 @@ h3,
   border-radius: 4px;
   padding: 10px;
   display: grid;
-  gap: 4px;
-  text-align: left;
+  gap: 6px;
+  text-align: center;
+  align-content: center;
+  aspect-ratio: 1;
+  min-height: 110px;
   cursor: pointer;
 }
 
 .skill-item--active {
   background: var(--accent-yellow);
+}
+
+.empty-state {
+  border: 2px dashed var(--border);
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #5b5b5b;
 }
 
 .grounding-box {
@@ -331,6 +342,11 @@ h3,
   grid-template-columns: 2fr 1fr;
   gap: 12px;
   margin-top: 12px;
+}
+
+.assessment-task-mount {
+  margin-top: 12px;
+  min-height: 400px;
 }
 
 .metric-row {

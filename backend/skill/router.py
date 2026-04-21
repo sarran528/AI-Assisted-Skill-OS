@@ -10,6 +10,7 @@ from backend.shared.db.session import get_db_session
 from backend.shared.errors import BusinessError, SystemError
 from backend.skill.schemas import (
     SkillTemplateCreate,
+    SkillTemplateUpdate,
     SkillTemplateResponse,
     SkillListResponse,
 )
@@ -125,6 +126,46 @@ async def create_skill(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create skill: {str(e)}",
+        )
+
+
+@router.put("/{skill_id}", response_model=SkillTemplateResponse)
+async def update_skill(
+    skill_id: str,
+    payload: SkillTemplateUpdate,
+    current_user: dict = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    """Update an existing skill template (admin only)."""
+    if current_user.get("status") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can update skill templates",
+        )
+
+    try:
+        service = SkillTemplateService(db_session)
+        template = await service.update_skill_template(skill_id, payload)
+        return SkillTemplateResponse(
+            id=template.id,
+            skill_id=template.skill_id,
+            version=template.version,
+            name=template.name,
+            domain=template.domain,
+            complexity_score=float(template.complexity_score),
+            structure=template.structure,
+            is_active=template.is_active,
+            created_at=template.created_at,
+        )
+    except BusinessError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST if e.code != "skill_not_found" else status.HTTP_404_NOT_FOUND,
+            detail=e.args[0],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update skill: {str(e)}",
         )
 
 

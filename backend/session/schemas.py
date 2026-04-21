@@ -44,3 +44,15 @@ class SessionStatusResponse(APIModel):
     attempt_number: int
     started_at: datetime | None
     ended_at: datetime | None
+
+
+class SessionListItem(APIModel):
+    session_id: UUID
+    status: str
+    phase: str
+    score: float | None
+    created_at: datetime | None
+
+
+class SessionListResponse(APIModel):
+    items: list[SessionListItem]

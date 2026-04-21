@@ -10,7 +10,7 @@ from backend.shared.db.repositories.skill_template_repository import (
 )
 from backend.shared.errors import BusinessError
 from backend.skill.template_schema import validate_template_structure
-from backend.skill.schemas import SkillTemplateCreate, SkillTemplateResponse
+from backend.skill.schemas import SkillTemplateCreate, SkillTemplateUpdate
 from backend.shared.db.models import SkillTemplate
 
 
@@ -73,6 +73,36 @@ class SkillTemplateService:
                 message=f"Skill template not found: {skill_id}",
             )
         return template
+
+    async def update_skill_template(self, skill_id: str, payload: SkillTemplateUpdate) -> SkillTemplate:
+        """Update a skill template by creating a new version."""
+        template = await self.repo.get_active_template(skill_id)
+        if not template:
+            raise BusinessError(
+                code="skill_not_found",
+                message=f"Skill template not found: {skill_id}",
+            )
+
+        if payload.structure is not None:
+            try:
+                validate_template_structure(payload.structure)
+            except ValidationError as e:
+                raise BusinessError(
+                    code="invalid_template_structure",
+                    message=f"Invalid skill template structure: {e.message}",
+                    context={"field": e.json_path},
+                )
+
+        new_data = {
+            "name": payload.name if payload.name is not None else template.name,
+            "domain": template.domain,
+            "complexity_score": (
+                payload.complexity_score if payload.complexity_score is not None else template.complexity_score
+            ),
+            "structure": payload.structure if payload.structure is not None else template.structure,
+        }
+
+        return await self.repo.increment_version(skill_id, new_data)
 
     async def list_skills(self) -> list[SkillTemplate]:
         """List all active skill templates."""

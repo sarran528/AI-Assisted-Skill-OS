@@ -2,6 +2,7 @@ import { Heart } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { AssessmentLevelTask, mapTaskResultsToSubmission } from "../components/assessment";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { MetricBar } from "../components/brutal/MetricBar";
@@ -15,7 +16,16 @@ interface LevelState {
 
 const QUESTION_COUNT = 10;
 const LEVELS = [1, 2, 3, 4, 5, 6];
-const LEVEL_TIME_SECONDS = 300;
+const LEVEL_TIME_SECONDS = 900;
+
+const LEVEL_TITLES: Record<number, string> = {
+  1: "Go / No-Go inhibition",
+  2: "Flanker attention control",
+  3: "Pattern switch survival",
+  4: "Rapid tap motor baseline",
+  5: "Countdown adaptive challenge",
+  6: "Time budget planning",
+};
 
 function computeLevelMetrics(levelState: LevelState) {
   const timings = levelState.responseTimings;
@@ -44,16 +54,26 @@ function formatTimer(seconds: number) {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
+const ABANDON_METRICS = {
+  accuracy: 0,
+  mean_response_time: 0,
+  response_time_variance: 0,
+  performance_decay: 0,
+  retry_depth: 1,
+  dropout_depth_index: 1,
+  recovery_slope: 0,
+  raw: {},
+};
+
 export function AssessmentView() {
   const navigate = useNavigate();
 
   const [currentLevel, setCurrentLevel] = useState(1);
-  const [currentQuestion, setCurrentQuestion] = useState(1);
   const [livesRemaining, setLivesRemaining] = useState(3);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(LEVEL_TIME_SECONDS);
-  const [questionStartTs, setQuestionStartTs] = useState<number>(Date.now());
   const [sessionId, setSessionId] = useState<string>("assessment-session-local");
   const [lifeLossFlash, setLifeLossFlash] = useState(false);
+  const [taskRunning, setTaskRunning] = useState(false);
 
   const [levels, setLevels] = useState<Record<number, LevelState>>(() =>
     Object.fromEntries(
@@ -78,19 +98,24 @@ export function AssessmentView() {
         setSessionId(data.session_id || "assessment-session-local");
       },
     });
-    // Intentionally run once at mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (levels[currentLevel].completed) {
+      return;
+    }
+    if (!taskRunning) {
+      return;
+    }
     const timer = window.setInterval(() => {
       setTimeLeftSeconds((value) => Math.max(0, value - 1));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [taskRunning, currentLevel, levels]);
 
   useEffect(() => {
-    if (timeLeftSeconds > 0 || levels[currentLevel].completed) {
+    if (timeLeftSeconds > 0 || levels[currentLevel].completed || !taskRunning) {
       return;
     }
 
@@ -100,16 +125,14 @@ export function AssessmentView() {
     setLivesRemaining((value) => {
       const next = Math.max(0, value - 1);
       if (next === 0) {
-        window.setTimeout(() => handleLevelComplete(currentLevel), 0);
+        window.setTimeout(() => handleAbandonLevel(currentLevel), 0);
       }
       return next;
     });
 
     setTimeLeftSeconds(LEVEL_TIME_SECONDS);
-    setCurrentQuestion(1);
-    setQuestionStartTs(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeftSeconds, currentLevel, levels]);
+  }, [timeLeftSeconds, currentLevel, levels, taskRunning]);
 
   const completedLevels = useMemo(
     () => Object.entries(levels).filter(([, state]) => state.completed).map(([level]) => Number(level)),
@@ -118,87 +141,41 @@ export function AssessmentView() {
 
   function selectLevel(level: number) {
     setCurrentLevel(level);
-    setCurrentQuestion(1);
     setTimeLeftSeconds(LEVEL_TIME_SECONDS);
     setLivesRemaining(3);
-    setQuestionStartTs(Date.now());
+    setTaskRunning(false);
   }
 
-  function handleAnswerSubmission(isCorrect: boolean) {
-    const now = Date.now();
-    const responseTime = now - questionStartTs;
-
-    setLevels((previous) => {
-      const levelState = previous[currentLevel];
-      const nextLevelState: LevelState = {
-        ...levelState,
-        accuracyRecord: [...levelState.accuracyRecord, isCorrect],
-        responseTimings: [...levelState.responseTimings, responseTime],
-      };
-      return {
-        ...previous,
-        [currentLevel]: nextLevelState,
-      };
-    });
-
-    if (!isCorrect) {
-      setLifeLossFlash(true);
-      window.setTimeout(() => setLifeLossFlash(false), 450);
-      setLivesRemaining((value) => Math.max(0, value - 1));
-    }
-
-    if (currentQuestion >= QUESTION_COUNT) {
-      handleLevelComplete();
-      return;
-    }
-
-    setCurrentQuestion((value) => value + 1);
-    setQuestionStartTs(Date.now());
+  function submitPayloadForLevel(level: number, taskMetrics: Record<string, unknown>) {
+    submitLevelMutation.mutate(mapTaskResultsToSubmission(sessionId, level, taskMetrics));
   }
 
-  function handleLevelComplete(level = currentLevel) {
-    const levelState = levels[level];
-    const metrics = computeLevelMetrics(levelState);
-
-    submitLevelMutation.mutate({
-      session_id: sessionId,
-      level,
-      metrics: {
-        accuracy: Math.round(metrics.accuracy * 100),
-        expected_time: Math.max(1, metrics.mean_response_time / 1000),
-        latency_stability: Math.min(25, metrics.response_time_variance / 10000),
-        decay_inverse: Math.max(0, 1 - metrics.performance_decay),
-        dropout: Math.max(0, 3 - livesRemaining),
-        retry: 0,
-        recovery: 1,
+  function handleTaskComplete(level: number, taskMetrics: Record<string, unknown>) {
+    submitPayloadForLevel(level, taskMetrics);
+    setLevels((previous) => ({
+      ...previous,
+      [level]: {
+        ...previous[level],
+        completed: true,
       },
-      time_constraint: {
-        available_hours_per_week: 8,
-        preferred_session_length: 45,
-      },
-    });
-
-    let nextLevel: number | null = null;
-    setLevels((previous) => {
-      const updated = {
-        ...previous,
-        [level]: {
-          ...previous[level],
-          completed: true,
-        },
-      };
-      nextLevel = LEVELS.find((candidate) => !updated[candidate].completed && candidate !== level) ?? null;
-      return updated;
-    });
-
-    if (nextLevel) {
-      setCurrentLevel(nextLevel);
-    }
-
-    setCurrentQuestion(1);
-    setLivesRemaining(3);
+    }));
+    setTaskRunning(false);
     setTimeLeftSeconds(LEVEL_TIME_SECONDS);
-    setQuestionStartTs(Date.now());
+    setLivesRemaining(3);
+  }
+
+  function handleAbandonLevel(level: number) {
+    submitPayloadForLevel(level, ABANDON_METRICS);
+    setLevels((previous) => ({
+      ...previous,
+      [level]: {
+        ...previous[level],
+        completed: true,
+      },
+    }));
+    setTaskRunning(false);
+    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
+    setLivesRemaining(3);
   }
 
   function handleQuickComplete() {
@@ -211,23 +188,21 @@ export function AssessmentView() {
         };
 
         const metrics = computeLevelMetrics(generated);
-        submitLevelMutation.mutate({
-          session_id: sessionId,
-          level,
-          metrics: {
-            accuracy: Math.round(metrics.accuracy * 100),
-            expected_time: 2,
-            latency_stability: 4,
-            decay_inverse: Math.max(0, 1 - metrics.performance_decay),
-            dropout: 0,
-            retry: 0,
-            recovery: 1,
-          },
-          time_constraint: {
-            available_hours_per_week: 8,
-            preferred_session_length: 45,
-          },
-        });
+        submitLevelMutation.mutate(
+          mapTaskResultsToSubmission(sessionId, level, {
+            accuracy: metrics.accuracy,
+            mean_response_time: metrics.mean_response_time,
+            response_time_variance: metrics.response_time_variance,
+            performance_decay: metrics.performance_decay,
+            retry_depth: 0.1,
+            dropout_depth_index: 0.1,
+            recovery_slope: 0.9,
+            raw: {
+              available_hours_per_week: 8,
+              preferred_session_length: 45,
+            },
+          })
+        );
       }
     });
 
@@ -243,6 +218,7 @@ export function AssessmentView() {
         ])
       ) as Record<number, LevelState>
     );
+    setTaskRunning(false);
   }
 
   function handleCompleteAssessment() {
@@ -256,6 +232,9 @@ export function AssessmentView() {
       }
     );
   }
+
+  const active = levels[currentLevel];
+  const levelTitle = LEVEL_TITLES[currentLevel] ?? `Level ${currentLevel}`;
 
   return (
     <main className="assessment-page" data-testid="assessment-screen">
@@ -294,40 +273,49 @@ export function AssessmentView() {
       </section>
 
       <BrutalCard accent="yellow" className="assessment-headline-card">
-        <h1 className="headline">Executive Control Assessment</h1>
-        <p>Working memory + inhibition</p>
+        <h1 className="headline">Executive control assessment</h1>
+        <p>{levelTitle}</p>
       </BrutalCard>
 
       <section className="assessment-content">
         <BrutalCard className="question-card">
-          <h2>
-            Question {currentQuestion} / {QUESTION_COUNT}
-          </h2>
-          <p>Respond to the active cognitive prompt.</p>
-          <div className="button-row">
-            <BrutalButton data-testid="submit-response" variant="primary" onClick={() => handleAnswerSubmission(true)}>
-              Submit Response
-            </BrutalButton>
-            <BrutalButton onClick={() => handleAnswerSubmission(false)} variant="danger">
-              Mark Incorrect
-            </BrutalButton>
-          </div>
+          {active.completed ? (
+            <>
+              <h2>Level {currentLevel} complete</h2>
+              <p className="small-copy">Pick another level above, or finish the session when all six are done.</p>
+            </>
+          ) : (
+            <>
+              <h2 data-testid="assessment-task-heading">{levelTitle}</h2>
+              <p className="small-copy">
+                Timer runs only while a task is in progress ({formatTimer(LEVEL_TIME_SECONDS)} budget per attempt).
+              </p>
+              <div className="assessment-task-mount">
+                <AssessmentLevelTask
+                  key={`${currentLevel}-${sessionId}`}
+                  level={currentLevel}
+                  onRunStateChange={setTaskRunning}
+                  onComplete={(metrics) => handleTaskComplete(currentLevel, metrics)}
+                />
+              </div>
+            </>
+          )}
         </BrutalCard>
 
         <BrutalCard className="metrics-card">
-          <h2 className="section-title">Performance</h2>
+          <h2 className="section-title">Session progress</h2>
+          <MetricBar label="Levels completed" value={completedLevels.length / 6} />
           <MetricBar
-            label="Accuracy"
-            value={levels[currentLevel].accuracyRecord.filter(Boolean).length / Math.max(1, levels[currentLevel].accuracyRecord.length)}
+            label="Current level status"
+            value={active.completed ? 1 : taskRunning ? 0.5 : 0}
           />
-          <MetricBar label="Latency" value={0.4} />
-          <MetricBar label="Retry" value={0} />
+          <MetricBar label="Lives remaining" value={livesRemaining / 3} />
         </BrutalCard>
       </section>
 
       <section className="button-row">
         <BrutalButton data-testid="quick-complete-assessment" onClick={handleQuickComplete}>
-          Quick Complete 6 Levels
+          Quick complete 6 levels
         </BrutalButton>
         <BrutalButton
           data-testid="complete-assessment"
@@ -335,7 +323,7 @@ export function AssessmentView() {
           onClick={handleCompleteAssessment}
           disabled={completedLevels.length < 6}
         >
-          Complete Assessment
+          Complete assessment
         </BrutalButton>
       </section>
     </main>

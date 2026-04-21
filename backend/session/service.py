@@ -135,3 +135,14 @@ async def complete_session(
 
 async def get_session_status(db: AsyncSession, session_id: UUID) -> Session | None:
     return await db.scalar(select(Session).where(Session.id == session_id))
+
+
+async def list_recent_sessions(db: AsyncSession, user_id: UUID, limit: int = 5) -> list[Session]:
+    stmt = (
+        select(Session)
+        .where(Session.user_id == user_id)
+        .order_by(Session.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())

@@ -1,13 +1,21 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { uploadEvidence } from "../api/evidence";
-import { completeSession, startSession, submitSessionMetrics } from "../api/session";
+import { completeSession, getRecentSessions, startSession, submitSessionMetrics } from "../api/session";
 import { validateCheckpoint } from "../api/validation";
 import type { SessionMetricsPayload } from "../types";
 
 export function useStartSession() {
   return useMutation({
     mutationFn: (payload: { skill_id: string; phase: string; technique_id: string }) => startSession(payload),
+  });
+}
+
+export function useRecentSessions(limit = 5) {
+  return useQuery({
+    queryKey: ["sessions", "recent", limit],
+    queryFn: () => getRecentSessions(limit),
+    staleTime: 30_000,
   });
 }
 

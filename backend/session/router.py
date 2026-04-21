@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.auth.dependencies import get_current_user
-from backend.session.schemas import SessionCompleteRequest, SessionStartRequest
+from backend.session.schemas import SessionCompleteRequest, SessionListItem, SessionListResponse, SessionStartRequest
 from backend.session.service import (
 	complete_session as complete_session_service,
+	list_recent_sessions as list_recent_sessions_service,
 	start_session as start_session_service,
 	submit_metrics as submit_metrics_service,
 )
@@ -42,6 +43,32 @@ async def start_session(
 		attempt_number=payload.attempt_number,
 	)
 	return {"session_id": str(session.id), "status": session.status}
+
+
+@router.get("/recent", response_model=SessionListResponse)
+@limiter.limit("30/minute")
+async def list_recent_sessions(
+	request: Request,
+	limit: int = 5,
+	current_user: dict = Depends(get_current_user),
+	db_session: AsyncSession = Depends(get_db_session),
+) -> SessionListResponse:
+	limit = min(max(limit, 1), 20)
+	sessions = await list_recent_sessions_service(db_session, current_user["user"].id, limit)
+	items: list[SessionListItem] = []
+	for session in sessions:
+		metrics = session.metrics_captured or {}
+		score_value = metrics.get("accuracy")
+		items.append(
+			SessionListItem(
+				session_id=session.id,
+				status=session.status,
+				phase=session.phase,
+				score=float(score_value) if score_value is not None else None,
+				created_at=session.created_at,
+			)
+		)
+	return SessionListResponse(items=items)
 
 
 @router.post("/metrics", status_code=status.HTTP_202_ACCEPTED)

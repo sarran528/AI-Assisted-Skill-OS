@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flanker Task - Attention Stability Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 20px;
+        }
+        
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stimulus-area {
+            font-size: 60px;
+            font-weight: bold;
+            margin: 50px 0;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 10px;
+            user-select: none;
+            color: #4CAF50;
+        }
+        
+        .fixation-cross {
+            font-size: 40px;
+            color: #666;
+        }
+        
+        .response-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 30px 0;
+        }
+        
+        .arrow-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            width: 80px;
+            height: 80px;
+            font-size: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        
+        .arrow-btn:hover {
+            background: #1976D2;
+            transform: scale(1.1);
+        }
+        
+        .arrow-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .arrow-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .stat-box {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2196F3, #4CAF50);
+            transition: width 0.3s ease;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .results {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .correct-feedback {
+            color: #4CAF50;
+        }
+        
+        .incorrect-feedback {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Flanker Task - Attention Stability Test</h1>
+        
+        <div id="instructions" class="instructions">
+            <h3>Instructions:</h3>
+            <p>• Focus on the CENTER arrow and indicate its direction</p>
+            <p>• Ignore the surrounding arrows (flankers)</p>
+            <p>• Press LEFT arrow key or click ← button for left-pointing center arrow</p>
+            <p>• Press RIGHT arrow key or click → button for right-pointing center arrow</p>
+            <p>• Respond as quickly and accurately as possible</p>
+            <p>• Test will take approximately 3-4 minutes</p>
+            <button onclick="startTest()">Start Test</button>
+        </div>
+        
+        <div id="test-area" class="hidden">
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+            
+            <div id="stimulus-area" class="stimulus-area">
+                <span class="fixation-cross">+</span>
+            </div>
+            
+            <div class="response-buttons">
+                <button id="left-btn" class="arrow-btn" onclick="handleResponse('left')" disabled>←</button>
+                <button id="right-btn" class="arrow-btn" onclick="handleResponse('right')" disabled>→</button>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-box">
+                    <div>Trial: <span id="trial-count">0</span>/<span id="total-trials">60</span></div>
+                </div>
+                <div class="stat-box">
+                    <div>Correct: <span id="correct">0</span></div>
+                </div>
+                <div class="stat-box">
+                    <div>Errors: <span id="errors">0</span></div>
+                </div>
+                <div class="stat-box">
+                    <div>Congruent RT: <span id="congruent-rt">0</span>ms</div>
+                </div>
+                <div class="stat-box">
+                    <div>Incongruent RT: <span id="incongruent-rt">0</span>ms</div>
+                </div>
+                <div class="stat-box">
+                    <div>Interference: <span id="interference">0</span>ms</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="results" class="results hidden">
+            <h3>Test Complete!</h3>
+            <pre id="results-json"></pre>
+            <button onclick="location.reload()">Run Again</button>
+        </div>
+        
+        <div id="feedback" class="feedback hidden"></div>
+    </div>
+
+    <script>
+        class FlankerTask {
+            constructor() {
+                this.trials = [];
+                this.currentTrial = 0;
+                this.totalTrials = 60;
+                this.congruentRatio = 0.5;
+                this.stimulusDuration = 2000; // max time to respond
+                this.isi = 1000; // inter-stimulus interval
+                this.fixationDuration = 500;
+                
+                this.results = {
+                    congruent: {
+                        correct: 0,
+                        total: 0,
+                        reactionTimes: []
+                    },
+                    incongruent: {
+                        correct: 0,
+                        total: 0,
+                        reactionTimes: []
+                    },
+                    trialData: []
+                };
+                
+                this.stimulusStartTime = null;
+                this.responseTimeout = null;
+                this.isWaitingForResponse = false;
+                this.currentStimulus = null;
+            }
+            
+            generateTrials() {
+                this.trials = [];
+                const congruentCount = Math.floor(this.totalTrials * this.congruentRatio);
+                const incongruentCount = this.totalTrials - congruentCount;
+                
+                // Create congruent trials
+                for (let i = 0; i < congruentCount; i++) {
+                    const direction = Math.random() < 0.5 ? 'left' : 'right';
+                    this.trials.push({
+                        type: 'congruent',
+                        direction: direction,
+                        stimulus: direction === 'left' ? '← ← ← ← ←' : '→ → → → →',
+                        correct: true
+                    });
+                }
+                
+                // Create incongruent trials
+                for (let i = 0; i < incongruentCount; i++) {
+                    const direction = Math.random() < 0.5 ? 'left' : 'right';
+                    const flankerDirection = direction === 'left' ? '→' : '←';
+                    this.trials.push({
+                        type: 'incongruent',
+                        direction: direction,
+                        stimulus: `${flankerDirection} ${flankerDirection} ${direction === 'left' ? '←' : '→'} ${flankerDirection} ${flankerDirection}`,
+                        correct: true
+                    });
+                }
+                
+                // Shuffle trials
+                for (let i = this.trials.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.trials[i], this.trials[j]] = [this.trials[j], this.trials[i]];
+                }
+            }
+            
+            start() {
+                this.generateTrials();
+                document.getElementById('instructions').classList.add('hidden');
+                document.getElementById('test-area').classList.remove('hidden');
+                document.getElementById('total-trials').textContent = this.totalTrials;
+                this.runNextTrial();
+            }
+            
+            async runNextTrial() {
+                if (this.currentTrial >= this.totalTrials) {
+                    this.endTest();
+                    return;
+                }
+                
+                const trial = this.trials[this.currentTrial];
+                
+                // Update progress
+                document.getElementById('trial-count').textContent = this.currentTrial + 1;
+                document.getElementById('progress-fill').style.width = `${((this.currentTrial + 1) / this.totalTrials) * 100}%`;
+                
+                // Show fixation cross
+                const stimulusEl = document.getElementById('stimulus-area');
+                stimulusEl.innerHTML = '<span class="fixation-cross">+</span>';
+                
+                // Wait for fixation duration
+                await this.sleep(this.fixationDuration);
+                
+                // Show stimulus
+                stimulusEl.textContent = trial.stimulus;
+                this.stimulusStartTime = performance.now();
+                this.isWaitingForResponse = true;
+                this.currentStimulus = trial;
+                
+                // Enable response buttons
+                document.getElementById('left-btn').disabled = false;
+                document.getElementById('right-btn').disabled = false;
+                
+                // Auto-advance if no response
+                this.responseTimeout = setTimeout(() => {
+                    this.handleTimeout();
+                }, this.stimulusDuration);
+            }
+            
+            handleResponse(direction) {
+                if (!this.isWaitingForResponse) return;
+                
+                const responseTime = performance.now() - this.stimulusStartTime;
+                const trial = this.trials[this.currentTrial];
+                const correct = direction === trial.direction;
+                
+                clearTimeout(this.responseTimeout);
+                this.isWaitingForResponse = false;
+                
+                // Disable response buttons
+                document.getElementById('left-btn').disabled = true;
+                document.getElementById('right-btn').disabled = true;
+                
+                // Record results
+                if (trial.type === 'congruent') {
+                    this.results.congruent.total++;
+                    if (correct) {
+                        this.results.congruent.correct++;
+                        this.results.congruent.reactionTimes.push(responseTime);
+                    }
+                } else {
+                    this.results.incongruent.total++;
+                    if (correct) {
+                        this.results.incongruent.correct++;
+                        this.results.incongruent.reactionTimes.push(responseTime);
+                    }
+                }
+                
+                // Store trial data
+                this.results.trialData.push({
+                    trial: this.currentTrial + 1,
+                    type: trial.type,
+                    direction: trial.direction,
+                    stimulus: trial.stimulus,
+                    response: direction,
+                    correct: correct,
+                    responseTime: responseTime
+                });
+                
+                // Show feedback
+                this.showFeedback(correct);
+                
+                // Update stats
+                this.updateStats();
+                
+                // Clear stimulus and continue
+                setTimeout(() => {
+                    document.getElementById('stimulus-area').innerHTML = '<span class="fixation-cross">+</span>';
+                    this.currentTrial++;
+                    setTimeout(() => this.runNextTrial(), this.isi);
+                }, 500);
+            }
+            
+            handleTimeout() {
+                if (!this.isWaitingForResponse) return;
+                
+                const trial = this.trials[this.currentTrial];
+                
+                this.isWaitingForResponse = false;
+                
+                // Record timeout as incorrect
+                if (trial.type === 'congruent') {
+                    this.results.congruent.total++;
+                } else {
+                    this.results.incongruent.total++;
+                }
+                
+                // Store trial data
+                this.results.trialData.push({
+                    trial: this.currentTrial + 1,
+                    type: trial.type,
+                    direction: trial.direction,
+                    stimulus: trial.stimulus,
+                    response: null,
+                    correct: false,
+                    responseTime: null
+                });
+                
+                // Disable response buttons
+                document.getElementById('left-btn').disabled = true;
+                document.getElementById('right-btn').disabled = true;
+                
+                // Update stats
+                this.updateStats();
+                
+                // Clear stimulus and continue
+                document.getElementById('stimulus-area').innerHTML = '<span class="fixation-cross">+</span>';
+                this.currentTrial++;
+                setTimeout(() => this.runNextTrial(), this.isi);
+            }
+            
+            showFeedback(correct) {
+                const feedbackEl = document.getElementById('feedback');
+                feedbackEl.textContent = correct ? '✓' : '✗';
+                feedbackEl.className = `feedback ${correct ? 'correct-feedback' : 'incorrect-feedback'}`;
+                feedbackEl.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    feedbackEl.classList.add('hidden');
+                }, 300);
+            }
+            
+            updateStats() {
+                const totalCorrect = this.results.congruent.correct + this.results.incongruent.correct;
+                const totalErrors = (this.results.congruent.total - this.results.congruent.correct) + 
+                                  (this.results.incongruent.total - this.results.incongruent.correct);
+                
+                document.getElementById('correct').textContent = totalCorrect;
+                document.getElementById('errors').textContent = totalErrors;
+                
+                if (this.results.congruent.reactionTimes.length > 0) {
+                    const congruentAvg = this.results.congruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.congruent.reactionTimes.length;
+                    document.getElementById('congruent-rt').textContent = Math.round(congruentAvg);
+                }
+                
+                if (this.results.incongruent.reactionTimes.length > 0) {
+                    const incongruentAvg = this.results.incongruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.incongruent.reactionTimes.length;
+                    document.getElementById('incongruent-rt').textContent = Math.round(incongruentAvg);
+                }
+                
+                // Calculate interference cost
+                if (this.results.congruent.reactionTimes.length > 0 && this.results.incongruent.reactionTimes.length > 0) {
+                    const congruentAvg = this.results.congruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.congruent.reactionTimes.length;
+                    const incongruentAvg = this.results.incongruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.incongruent.reactionTimes.length;
+                    const interference = incongruentAvg - congruentAvg;
+                    document.getElementById('interference').textContent = Math.round(interference);
+                }
+            }
+            
+            calculateMetrics() {
+                const totalCorrect = this.results.congruent.correct + this.results.incongruent.correct;
+                const totalResponses = this.results.congruent.total + this.results.incongruent.total;
+                
+                // Accuracy
+                const accuracy = totalResponses > 0 ? totalCorrect / totalResponses : 0;
+                
+                // Mean response time (all correct responses)
+                const allRTs = [...this.results.congruent.reactionTimes, ...this.results.incongruent.reactionTimes];
+                const meanResponseTime = allRTs.length > 0 
+                    ? allRTs.reduce((a, b) => a + b, 0) / allRTs.length 
+                    : 0;
+                
+                // Response time variance (flanker interference cost)
+                let responseTimeVariance = 0;
+                if (this.results.congruent.reactionTimes.length > 0 && this.results.incongruent.reactionTimes.length > 0) {
+                    const congruentAvg = this.results.congruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.congruent.reactionTimes.length;
+                    const incongruentAvg = this.results.incongruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.incongruent.reactionTimes.length;
+                    responseTimeVariance = incongruentAvg - congruentAvg;
+                }
+                
+                // Performance decay (compare first half vs second half)
+                const halfway = Math.floor(allRTs.length / 2);
+                const firstHalf = allRTs.slice(0, halfway);
+                const secondHalf = allRTs.slice(halfway);
+                
+                const firstHalfAvg = firstHalf.length > 0 ? firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length : 0;
+                const secondHalfAvg = secondHalf.length > 0 ? secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length : 0;
+                const performanceDecay = firstHalfAvg > 0 ? (secondHalfAvg - firstHalfAvg) / firstHalfAvg : 0;
+                
+                // Retry depth (inverse of accuracy)
+                const retryDepth = 1 - accuracy;
+                
+                // Dropout depth index (error rate)
+                const dropoutDepthIndex = 1 - accuracy;
+                
+                // Recovery slope (post-error performance)
+                const errorTrials = this.results.trialData.filter((t, i) => i > 0 && !this.results.trialData[i-1].correct && t.correct);
+                const totalErrors = this.results.trialData.filter(t => !t.correct).length;
+                const recoverySlope = totalErrors > 0 ? errorTrials.length / totalErrors : 0;
+                
+                return {
+                    accuracy: accuracy,
+                    mean_response_time: meanResponseTime,
+                    response_time_variance: responseTimeVariance,
+                    performance_decay: performanceDecay,
+                    retry_depth: retryDepth,
+                    dropout_depth_index: dropoutDepthIndex,
+                    recovery_slope: recoverySlope,
+                    raw: {
+                        total_trials: this.totalTrials,
+                        congruent_trials: this.results.congruent.total,
+                        incongruent_trials: this.results.incongruent.total,
+                        congruent_correct: this.results.congruent.correct,
+                        incongruent_correct: this.results.incongruent.correct,
+                        congruent_reaction_times: this.results.congruent.reactionTimes,
+                        incongruent_reaction_times: this.results.incongruent.reactionTimes,
+                        congruent_avg_rt: this.results.congruent.reactionTimes.length > 0 
+                            ? this.results.congruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.congruent.reactionTimes.length 
+                            : 0,
+                        incongruent_avg_rt: this.results.incongruent.reactionTimes.length > 0 
+                            ? this.results.incongruent.reactionTimes.reduce((a, b) => a + b, 0) / this.results.incongruent.reactionTimes.length 
+                            : 0,
+                        flanker_interference_cost: responseTimeVariance,
+                        trial_data: this.results.trialData
+                    }
+                };
+            }
+            
+            endTest() {
+                const metrics = this.calculateMetrics();
+                document.getElementById('test-area').classList.add('hidden');
+                document.getElementById('results').classList.remove('hidden');
+                document.getElementById('results-json').textContent = JSON.stringify(metrics, null, 2);
+                
+                // Store results for potential use by other systems
+                window.testResults = metrics;
+                console.log('Flanker Task Results:', metrics);
+                
+                // Send results to parent dashboard if in iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'assessment-complete',
+                        results: metrics
+                    }, '*');
+                }
+            }
+            
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+        
+        let test;
+        
+        function startTest() {
+            test = new FlankerTask();
+            test.start();
+        }
+        
+        function handleResponse(direction) {
+            if (test && test.isWaitingForResponse) {
+                test.handleResponse(direction);
+            }
+        }
+        
+        // Handle keyboard responses
+        document.addEventListener('keydown', (e) => {
+            if (test && test.isWaitingForResponse) {
+                if (e.code === 'ArrowLeft') {
+                    e.preventDefault();
+                    handleResponse('left');
+                } else if (e.code === 'ArrowRight') {
+                    e.preventDefault();
+                    handleResponse('right');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

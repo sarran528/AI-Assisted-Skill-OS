@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { SessionCompleteResponse, SessionMetricsPayload, SessionStartResponse } from "../types";
+import type { SessionCompleteResponse, SessionListItem, SessionMetricsPayload, SessionStartResponse } from "../types";
 
 export async function startSession(payload: {
   skill_id: string;
@@ -21,4 +21,9 @@ export async function completeSession(payload: {
 }): Promise<SessionCompleteResponse> {
   const response = await apiClient.post("/sessions/complete", payload);
   return response.data;
+}
+
+export async function getRecentSessions(limit = 5): Promise<SessionListItem[]> {
+  const response = await apiClient.get("/sessions/recent", { params: { limit } });
+  return response.data.items ?? [];
 }

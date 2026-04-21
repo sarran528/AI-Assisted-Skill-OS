@@ -1,43 +1,38 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { StatBlock } from "../components/brutal/StatBlock";
 import { useGenerateRoadmap } from "../hooks/useRoadmap";
-import { useStartSession } from "../hooks/useSession";
+import { useRecentSessions, useStartSession } from "../hooks/useSession";
 import { useSkills, useSubmitGrounding } from "../hooks/useSkills";
 import type { SkillItem } from "../types";
 
-const defaultSkills: SkillItem[] = [
-  { skill_id: "drawing", name: "Drawing", domain: "arts" },
-  { skill_id: "python_basics", name: "Python Basics", domain: "coding" },
-];
-
 export function DashboardView() {
   const navigate = useNavigate();
-  const [selectedSkill, setSelectedSkill] = useState<string>("drawing");
+  const [selectedSkill, setSelectedSkill] = useState<string>("");
   const [groundingDone, setGroundingDone] = useState(false);
   const [roadmapFingerprint, setRoadmapFingerprint] = useState<string | null>(null);
-  const [recentSessions] = useState([
-    { id: "S-214", status: "passed", phase: "foundation", score: 0.86 },
-    { id: "S-213", status: "failed", phase: "foundation", score: 0.52 },
-    { id: "S-212", status: "passed", phase: "orientation", score: 0.77 },
-  ]);
 
   const skillsQuery = useSkills();
   const groundingMutation = useSubmitGrounding();
   const generateRoadmapMutation = useGenerateRoadmap();
   const startSessionMutation = useStartSession();
 
-  const skills = useMemo(() => {
-    if (skillsQuery.data && skillsQuery.data.length > 0) {
-      return skillsQuery.data;
+  const recentSessionsQuery = useRecentSessions(6);
+  const skills = useMemo(() => skillsQuery.data ?? [], [skillsQuery.data]);
+
+  useEffect(() => {
+    if (!selectedSkill && skills.length > 0) {
+      setSelectedSkill(skills[0].skill_id);
     }
-    return defaultSkills;
-  }, [skillsQuery.data]);
+  }, [selectedSkill, skills]);
 
   function handleGroundingSubmit() {
+    if (!selectedSkill) {
+      return;
+    }
     localStorage.setItem("skillos-active-skill", selectedSkill);
     groundingMutation.mutate(
       {
@@ -55,6 +50,9 @@ export function DashboardView() {
   }
 
   function handleGenerateRoadmap() {
+    if (!selectedSkill) {
+      return;
+    }
     localStorage.setItem("skillos-active-skill", selectedSkill);
     generateRoadmapMutation.mutate(selectedSkill, {
       onSuccess: (data) => {
@@ -66,6 +64,9 @@ export function DashboardView() {
   }
 
   function handleEnterSession() {
+    if (!selectedSkill) {
+      return;
+    }
     startSessionMutation.mutate(
       {
         skill_id: selectedSkill,
@@ -96,38 +97,57 @@ export function DashboardView() {
       </aside>
 
       <section className="main-panel">
-        <BrutalCard accent="yellow" className="roadmap-card">
-          <div className="mono-caps">Active Skill</div>
-          <h1 className="headline">{selectedSkill.toUpperCase()}</h1>
-          <p>Phase 2 of 4 - Intermediate session prep</p>
+        <BrutalCard className="skill-instructions-card" accent="blue">
+          <h2 className="section-title">Create a Skill</h2>
+          <p>Pick a domain, submit grounding probes, then generate a roadmap to start sessions.</p>
           <div className="button-row">
-            <BrutalButton data-testid="start-assessment" onClick={() => navigate("/assessment")} variant="primary">
-              Start Assessment
-            </BrutalButton>
-            <BrutalButton onClick={handleEnterSession} data-testid="enter-session" disabled={!roadmapFingerprint}>
-              Enter Session
+            <BrutalButton
+              data-testid="create-skill"
+              variant="primary"
+              onClick={() => navigate("/skills/new")}
+            >
+              Create Skill
             </BrutalButton>
           </div>
         </BrutalCard>
 
         <BrutalCard className="skill-list-card">
-          <h2 className="section-title">Select Skill</h2>
+          <h2 className="section-title">Available Skills</h2>
           <div className="skill-grid">
-            {skills.map((skill) => (
-              <button
-                key={skill.skill_id}
-                type="button"
-                data-testid={`skill-${skill.skill_id}`}
-                className={`skill-item ${selectedSkill === skill.skill_id ? "skill-item--active" : ""}`}
-                onClick={() => {
-                  setSelectedSkill(skill.skill_id);
-                  localStorage.setItem("skillos-active-skill", skill.skill_id);
-                }}
-              >
-                <span className="mono-caps">{skill.domain ?? "general"}</span>
-                <strong>{skill.name}</strong>
-              </button>
-            ))}
+            {skillsQuery.isLoading ? (
+              <div className="empty-state">Loading skills...</div>
+            ) : skills.length === 0 ? (
+              <div className="empty-state">No skills available yet.</div>
+            ) : (
+              skills.map((skill) => (
+                <button
+                  key={skill.skill_id}
+                  type="button"
+                  data-testid={`skill-${skill.skill_id}`}
+                  className={`skill-item ${selectedSkill === skill.skill_id ? "skill-item--active" : ""}`}
+                  onClick={() => {
+                    setSelectedSkill(skill.skill_id);
+                    localStorage.setItem("skillos-active-skill", skill.skill_id);
+                  }}
+                >
+                  <span className="mono-caps">{skill.domain ?? "general"}</span>
+                  <strong>{skill.name}</strong>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="button-row">
+            <BrutalButton data-testid="start-assessment" onClick={() => navigate("/assessment")} variant="primary">
+              Start Assessment
+            </BrutalButton>
+            <BrutalButton
+              onClick={handleEnterSession}
+              data-testid="enter-session"
+              disabled={!roadmapFingerprint || !selectedSkill}
+            >
+              Enter Session
+            </BrutalButton>
           </div>
 
           <div className="grounding-box">
@@ -146,7 +166,7 @@ export function DashboardView() {
               data-testid="generate-roadmap"
               onClick={handleGenerateRoadmap}
               variant="secondary"
-              disabled={!groundingDone}
+              disabled={!groundingDone || !selectedSkill}
             >
               Generate Roadmap
             </BrutalButton>
@@ -163,10 +183,10 @@ export function DashboardView() {
       <section className="right-panel">
         <h3 className="section-title">Profile Summary</h3>
         <div className="stats-grid">
-          <StatBlock value="0.84" label="cognitive cap." accent />
-          <StatBlock value="0.71" label="attn stability" />
-          <StatBlock value="0.65" label="learn tolerance" />
-          <StatBlock value="0.78" label="stress resilience" />
+          <StatBlock value="--" label="cognitive cap." accent />
+          <StatBlock value="--" label="attn stability" />
+          <StatBlock value="--" label="learn tolerance" />
+          <StatBlock value="--" label="stress resilience" />
         </div>
 
         <BrutalCard className="dashboard-card" accent="yellow" testId="phase-progress-card">
@@ -187,14 +207,20 @@ export function DashboardView() {
         <BrutalCard className="dashboard-card" accent="blue" testId="recent-sessions-card">
           <h3>Recent Sessions</h3>
           <div className="recent-session-list">
-            {recentSessions.map((session) => (
-              <article key={session.id} className="recent-session-item">
-                <strong>{session.id}</strong>
-                <span>{session.phase}</span>
-                <span className={`status-pill status-pill--${session.status}`}>{session.status.toUpperCase()}</span>
-                <span>{Math.round(session.score * 100)}%</span>
-              </article>
-            ))}
+            {recentSessionsQuery.isLoading ? (
+              <div className="empty-state">Loading sessions...</div>
+            ) : recentSessionsQuery.data && recentSessionsQuery.data.length > 0 ? (
+              recentSessionsQuery.data.map((session) => (
+                <article key={session.session_id} className="recent-session-item">
+                  <strong>{session.session_id.slice(0, 8).toUpperCase()}</strong>
+                  <span>{session.phase}</span>
+                  <span className={`status-pill status-pill--${session.status}`}>{session.status.toUpperCase()}</span>
+                  <span>{session.score !== null ? `${Math.round(session.score * 100)}%` : "--"}</span>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">No sessions yet.</div>
+            )}
           </div>
           <BrutalButton data-testid="view-sessions-btn" onClick={handleEnterSession}>Open Session</BrutalButton>
         </BrutalCard>
