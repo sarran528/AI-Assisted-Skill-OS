@@ -1,23 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { CreateSkillCard } from "../components/home/CreateSkillCard";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { StatBlock } from "../components/brutal/StatBlock";
-import { useGenerateRoadmap } from "../hooks/useRoadmap";
 import { useRecentSessions, useStartSession } from "../hooks/useSession";
-import { useSkills, useSubmitGrounding } from "../hooks/useSkills";
+import { useSkills } from "../hooks/useSkills";
 import type { SkillItem } from "../types";
 
 export function DashboardView() {
   const navigate = useNavigate();
   const [selectedSkill, setSelectedSkill] = useState<string>("");
-  const [groundingDone, setGroundingDone] = useState(false);
-  const [roadmapFingerprint, setRoadmapFingerprint] = useState<string | null>(null);
 
   const skillsQuery = useSkills();
-  const groundingMutation = useSubmitGrounding();
-  const generateRoadmapMutation = useGenerateRoadmap();
   const startSessionMutation = useStartSession();
 
   const recentSessionsQuery = useRecentSessions(6);
@@ -28,40 +24,6 @@ export function DashboardView() {
       setSelectedSkill(skills[0].skill_id);
     }
   }, [selectedSkill, skills]);
-
-  function handleGroundingSubmit() {
-    if (!selectedSkill) {
-      return;
-    }
-    localStorage.setItem("skillos-active-skill", selectedSkill);
-    groundingMutation.mutate(
-      {
-        skill_id: selectedSkill,
-        recognition: { items: [true, false, true] },
-        familiarity: { answers: [0, 1, 0] },
-        confidence: { level: 3 },
-      },
-      {
-        onSuccess: () => {
-          setGroundingDone(true);
-        },
-      }
-    );
-  }
-
-  function handleGenerateRoadmap() {
-    if (!selectedSkill) {
-      return;
-    }
-    localStorage.setItem("skillos-active-skill", selectedSkill);
-    generateRoadmapMutation.mutate(selectedSkill, {
-      onSuccess: (data) => {
-        const fingerprint = data.fingerprint ?? `fp-${selectedSkill}-v1`;
-        setRoadmapFingerprint(fingerprint);
-        localStorage.setItem("skillos-roadmap-fingerprint", fingerprint);
-      },
-    });
-  }
 
   function handleEnterSession() {
     if (!selectedSkill) {
@@ -81,6 +43,40 @@ export function DashboardView() {
     );
   }
 
+  /**
+   * PRE-SKILL STATE: SkillRoadmap == null AND BaselineSkillState == null
+   * Indicator: skills.length === 0 AND not loading
+   * Render: Only CreateSkillCard, no other UI elements
+   */
+  const isPreSkillState = !skillsQuery.isLoading && skills.length === 0;
+
+  if (isPreSkillState) {
+    return (
+      <main className="page-grid">
+        <aside className="sidebar">
+          <h2 className="sidebar__title">SkillOS</h2>
+          <button className="nav-item nav-item--active" type="button">
+            Home
+          </button>
+          <button className="nav-item" type="button">
+            My Skills
+          </button>
+          <button className="nav-item" type="button" onClick={() => navigate("/assessment")}>
+            Assessment
+          </button>
+        </aside>
+
+        <section className="main-panel main-panel--centered">
+          <CreateSkillCard />
+        </section>
+      </main>
+    );
+  }
+
+  /**
+   * POST-SKILL STATE: Active progression
+   * Render: Full dashboard with skills, assessment, sessions, roadmap
+   */
   return (
     <main className="page-grid">
       <aside className="sidebar">
@@ -97,86 +93,44 @@ export function DashboardView() {
       </aside>
 
       <section className="main-panel">
-        <BrutalCard className="skill-instructions-card" accent="blue">
-          <h2 className="section-title">Create a Skill</h2>
-          <p>Pick a domain, submit grounding probes, then generate a roadmap to start sessions.</p>
-          <div className="button-row">
-            <BrutalButton
-              data-testid="create-skill"
-              variant="primary"
-              onClick={() => navigate("/skills/new")}
-            >
-              Create Skill
-            </BrutalButton>
-          </div>
-        </BrutalCard>
-
         <BrutalCard className="skill-list-card">
           <h2 className="section-title">Available Skills</h2>
           <div className="skill-grid">
             {skillsQuery.isLoading ? (
-              <div className="empty-state">Loading skills...</div>
+              <div className="skill-item skill-item--placeholder">Loading skills...</div>
             ) : skills.length === 0 ? (
-              <div className="empty-state">No skills available yet.</div>
+              <div className="skill-item skill-item--placeholder">No skills available yet.</div>
             ) : (
               skills.map((skill) => (
-                <button
+                <div
                   key={skill.skill_id}
-                  type="button"
                   data-testid={`skill-${skill.skill_id}`}
-                  className={`skill-item ${selectedSkill === skill.skill_id ? "skill-item--active" : ""}`}
-                  onClick={() => {
-                    setSelectedSkill(skill.skill_id);
-                    localStorage.setItem("skillos-active-skill", skill.skill_id);
-                  }}
+                  className="skill-item"
                 >
-                  <span className="mono-caps">{skill.domain ?? "general"}</span>
-                  <strong>{skill.name}</strong>
-                </button>
+                  <div className="skill-card__header">
+                    <strong>{skill.name}</strong>
+                    <span className="mono-caps">Domain: {skill.domain ?? "general"}</span>
+                  </div>
+                  <div className="skill-card__meta">
+                    <span>ID: {skill.skill_id}</span>
+                  </div>
+                  <div className="skill-card__actions">
+                    <BrutalButton
+                      data-testid={`start-assessment-${skill.skill_id}`}
+                      variant="primary"
+                      onClick={() => {
+                        setSelectedSkill(skill.skill_id);
+                        localStorage.setItem("skillos-active-skill", skill.skill_id);
+                        navigate("/assessment");
+                      }}
+                    >
+                      Start Assessment
+                    </BrutalButton>
+                  </div>
+                </div>
               ))
             )}
           </div>
-
-          <div className="button-row">
-            <BrutalButton data-testid="start-assessment" onClick={() => navigate("/assessment")} variant="primary">
-              Start Assessment
-            </BrutalButton>
-            <BrutalButton
-              onClick={handleEnterSession}
-              data-testid="enter-session"
-              disabled={!roadmapFingerprint || !selectedSkill}
-            >
-              Enter Session
-            </BrutalButton>
-          </div>
-
-          <div className="grounding-box">
-            <p className="mono-caps">Grounding Probes</p>
-            <label className="checkbox-row" htmlFor="recognition-0">
-              <input id="recognition-0" data-testid="grounding-recognition-0" type="checkbox" defaultChecked />
-              Recognition sample 1
-            </label>
-            <BrutalButton data-testid="grounding-submit" variant="primary" onClick={handleGroundingSubmit}>
-              Submit Grounding
-            </BrutalButton>
-          </div>
-
-          <div className="button-row">
-            <BrutalButton
-              data-testid="generate-roadmap"
-              onClick={handleGenerateRoadmap}
-              variant="secondary"
-              disabled={!groundingDone || !selectedSkill}
-            >
-              Generate Roadmap
-            </BrutalButton>
-          </div>
-
-          {roadmapFingerprint && (
-            <div data-testid="roadmap-fingerprint" className="fingerprint-badge">
-              Integrity verified ✓
-            </div>
-          )}
         </BrutalCard>
       </section>
 
