@@ -813,6 +813,42 @@ Playwright traces are uploaded as CI artifacts on failure — this gives you a f
 
 ✅ Step 10 — Session metric submission from protocol actions: completed.
 
+## Steps 11-20 status (iteration update)
+
+✅ Step 11 — Evidence upload wired in Session UI and API (`/evidence/upload`), covered by Playwright first-13 flow.
+
+✅ Step 12 — Session completion confirmation flow wired (`/sessions/complete`), covered by Playwright first-13 flow.
+
+✅ Step 13 — Checkpoint validation trigger wired (`/validation/checkpoint/validate`), covered by Playwright first-13 flow.
+
+✅ Step 14 — Session execution rules completed in `/sessions/complete` (`backend/session/execution.py` + `backend/session/router.py`) with protocol adherence checks, weighted quality scoring, retry limit handling, and structured failure reasons.
+
+✅ Step 15 — Validation engine completed with multi-evidence evaluation (`artifact`, `numeric`, `behavioral_log`) plus persisted validation metadata and explicit reason codes (`backend/validation/engine.py`, `backend/validation/validators.py`, `backend/validation/router.py`, `backend/validation/schemas.py`).
+
+✅ Step 16 — Orchestration transition helpers fully applied across session and checkpoint lifecycle paths (`start`, `metrics`, `complete`, and checkpoint validation transitions) via `backend/orchestration/state_machine.py`, `backend/orchestration/orchestrator.py`, `backend/session/router.py`, and `backend/validation/engine.py`.
+
+✅ Step 17 — Queue execution completed with DB-backed job lifecycle updates (`queued` → `running` → `completed`/`failed`) and concrete checkpoint validation task execution in `backend/shared/queue/tasks.py`, plus async validation enqueue endpoint in `backend/validation/router.py`.
+
+✅ Step 18 — RAG retrieval completed as a hybrid pipeline: semantic ranking (vector distance when embedding is available) plus lexical fallback scoring, with score surfaced in response (`backend/rag/router.py`, `backend/rag/retriever.py`, `backend/rag/query_builder.py`, `backend/rag/schemas.py`).
+
+✅ Step 19 — Offline RAG pipeline completed with configurable chunking, optional run report output, and idempotent source re-index behavior (`scripts/rag/pipeline.py`, `scripts/rag/indexer.py`).
+
+✅ Step 20 — Cross-module wiring and validation completed for steps 14-20 with targeted backend tests (`tests/test_session_execution.py`, `tests/test_validation_rules.py`, `tests/test_rag_retriever.py` all passing in focused run) and frontend regression checks (`npm run build`, `npm run test:e2e:first13` passing).
+
+## Steps 24-29 status (iteration update)
+
+✅ Step 24 — Assessment UI upgraded in `frontend/src/views/AssessmentView.tsx` with free-order level cards, per-level timer, life-loss flash, real-time metric accumulation, and complete flow redirect.
+
+✅ Step 25 — Dashboard expanded in `frontend/src/views/DashboardView.tsx` with phase pips, recent session cards, and profile/stat layout continuity.
+
+✅ Step 26 — Session interface expanded in `frontend/src/views/SessionView.tsx` with strict protocol ordering feedback, 10-second metric submission loop, drag-and-drop evidence zone, and completion confirmation summary.
+
+✅ Step 27 — Roadmap viewer expanded in `frontend/src/views/RoadmapView.tsx` with timeline cards, checkpoint status rows, integrity banner, and collapsible roadmap parameters panel.
+
+✅ Step 28 — Doubt and tip side panel implemented through `frontend/src/components/brutal/SupportPanel.tsx`, `frontend/src/components/brutal/TipCard.tsx`, `frontend/src/api/support.ts`, and hooks `useDoubt`, `useTip`, `useResources`; integrated into Session and Roadmap views, with backend endpoints wired at `/support/resources`, `/support/doubt/ask`, and `/tip/{session_id}`.
+
+✅ Step 29 — Frontend E2E suite expanded with `frontend/e2e/full-loop.spec.ts`, `frontend/e2e/assessment.spec.ts`, `frontend/e2e/session.spec.ts`, `frontend/e2e/roadmap.spec.ts`, plus `frontend/e2e/helpers/api.ts` support mocks and dedicated npm scripts; backend integration loop test scaffolded in `backend/tests/e2e/test_full_loop.py`.
+
 ---
 
 ## Phase E completion gate
