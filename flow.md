@@ -6,6 +6,37 @@ I'll read all project files systematically before producing the technical map.Al
 
 ---
 
+## Completion Status — ACTUAL vs. SPEC (version_2 branch)
+
+### ✅ Completed
+1. ✅ Project directory structure — backend modular layout exists
+2. ✅ Backend main registration (main.py) — FastAPI app created with routers
+3. ✅ Core API routes — auth, assessment, profile, skill, roadmap, session routers exist
+4. ✅ Frontend routing structure — React Router v6 with ProtectedRoute
+5. ✅ Auth middleware and services — implemented
+6. ✅ Environment variables and config — backend/shared/config.py exists
+7. ✅ Rate limiting and error handling — SlowAPI middleware in place
+8. ✅ Frontend stores — assessmentStore, profileStore, roadmapStore, sessionStore created
+9. ✅ Frontend API client layer — all 10 API files created (auth, assessment, profile, skill, roadmap, session, evidence, checkpoint, resource, doubt, tip, axios)
+10. ✅ Layout components — AppShell, Sidebar, TopBar created
+11. ✅ Backend service layer — parameter_service, validation_service, llm_service, rag_service created
+12. ✅ Frontend views — ProfileView, SkillSelectView, GroundingView, CheckpointView, ResourcesView, DoubtView created (all 11 pages now exist)
+
+### ⚠️ Partial (Skeleton/Foundation Implemented)
+13. ⚠️ Data schema (models) — basic models exist; need full SQLAlchemy/Pydantic migration
+14. ⚠️ CRUD operations — basic layer exists; needs full implementation with DB operations
+15. ⚠️ Frontend components — view structure exists; needs UI polish with shadcn/ui components
+16. ⚠️ RAG service — skeleton with mock retrieval; needs pgvector integration
+17. ⚠️ LLM service — basic interface created; needs actual API key wiring
+
+### ❌ Not Yet Started
+18. ❌ Evidence upload/validation system — backend file handling
+19. ❌ Async roadmap generation job queue — Celery integration
+20. ❌ Assessment battery UI polish — 6-level assessment display
+21. ❌ Tip generation system (failure-triggered)
+
+---
+
 ## SECTION 1 — PROJECT DIRECTORY STRUCTURE
 
 ```
