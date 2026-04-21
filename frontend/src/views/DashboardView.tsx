@@ -96,6 +96,9 @@ export function DashboardView() {
         <button className="nav-item" type="button" onClick={() => navigate("/assessment")}>
           Assessment
         </button>
+        <button className="nav-item" type="button" onClick={() => navigate(`/roadmap/${selectedSkill}`)}>
+          Roadmap
+        </button>
       </aside>
 
       <section className="main-panel">
@@ -166,7 +169,7 @@ export function DashboardView() {
           <p>Phase B complete. Phase C unlocked.</p>
           <BrutalButton data-testid="view-roadmap-btn" onClick={() => navigate(`/roadmap/${selectedSkill}`)}>
             View Roadmap
-          </BrutalButton>
+          </brutalbutton>
         </BrutalCard>
 
         <BrutalCard className="dashboard-card" accent="blue" testId="recent-sessions-card">
