@@ -169,7 +169,7 @@ export function DashboardView() {
           <p>Phase B complete. Phase C unlocked.</p>
           <BrutalButton data-testid="view-roadmap-btn" onClick={() => navigate(`/roadmap/${selectedSkill}`)}>
             View Roadmap
-          </brutalbutton>
+          </BrutalButton>
         </BrutalCard>
 
         <BrutalCard className="dashboard-card" accent="blue" testId="recent-sessions-card">
