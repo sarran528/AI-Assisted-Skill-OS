@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Navigate, Outlet, Route, BrowserRouter as Router, Routes } from "react-router-dom";
-
-import { useAuthStore } from "./store/authStore";
+import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { ProtectedRoute } from "./components/auth";
 import { AssessmentView } from "./views/AssessmentView";
 import { DashboardView } from "./views/DashboardView";
 import { LoginView } from "./views/LoginView";
@@ -11,14 +10,6 @@ import { SessionView } from "./views/SessionView";
 
 const queryClient = new QueryClient();
 
-function ProtectedLayout() {
-  const accessToken = useAuthStore((state) => state.accessToken);
-  if (!accessToken) {
-    return <Navigate to="/login" replace />;
-  }
-  return <Outlet />;
-}
-
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -27,7 +18,7 @@ export function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<LoginView />} />
           <Route path="/register" element={<RegisterView />} />
-          <Route element={<ProtectedLayout />}>
+          <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardView />} />
             <Route path="/assessment" element={<AssessmentView />} />
             <Route path="/roadmap/:skillId" element={<RoadmapView />} />

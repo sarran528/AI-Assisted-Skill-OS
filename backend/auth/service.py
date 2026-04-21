@@ -10,6 +10,7 @@ from backend.auth.password import hash_password, verify_password
 from backend.shared.audit import log_audit_event
 from backend.shared.config import settings
 from backend.shared.db.repositories.auth_repo import AuthRepository
+from backend.shared.db.repositories.cognitive_profile_repo import CognitiveProfileRepository
 
 
 COOKIE_NAME = "skillos_refresh"
@@ -54,6 +55,10 @@ async def register_user(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     user = await repo.create_user(email=email.lower(), password_hash=hash_password(password))
+    
+    cognitive_profile_repo = CognitiveProfileRepository(db_session)
+    await cognitive_profile_repo.create_cognitive_profile(user.id)
+
     access_token, access_jti, access_exp = create_access_token(str(user.id), user.email, user.status)
     refresh_token = _generate_refresh_token()
 
