@@ -14,7 +14,6 @@ from backend.roadmap.schemas import (
 from backend.shared.models import APIModel
 from backend.shared.db.repositories.roadmap_repository import RoadmapRepository
 from backend.shared.db.session import get_db_session
-from backend.shared.queue.tasks import generate_roadmap_task
 from backend.shared.rate_limit import limiter
 from backend.shared.queue.celery_app import celery_app
 
@@ -46,6 +45,7 @@ async def generate_roadmap(
     payload: RoadmapGenerateRequest,
     current_user: dict = Depends(get_current_user),
 ) -> RoadmapGenerateResponse:
+    from backend.shared.queue.tasks import generate_roadmap_task
     _ = request
     task = generate_roadmap_task.delay(str(current_user["user"].id), payload.skill_id)
     return RoadmapGenerateResponse(job_id=task.id, status="queued")
