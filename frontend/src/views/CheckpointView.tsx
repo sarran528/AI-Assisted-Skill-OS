@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { checkpointApi } from "../api/checkpointApi";
 import { Badge } from "../components/ui/Badge";
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
-import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from "../components/brutal/BrutalCard";
+import { BrutalCard as Card } from "../components/brutal/BrutalCard";
 
 interface Checkpoint {
   checkpoint_id: string;
@@ -38,10 +38,10 @@ export function CheckpointView() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {checkpoints.map((cp) => (
           <Card key={cp.checkpoint_id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{cp.checkpoint_id}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <div className="p-4">
+              <h2 className="text-lg font-bold">{cp.checkpoint_id}</h2>
+            </div>
+            <div className="p-4 space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">Phase</p>
                 <p className="font-medium">{cp.phase}</p>
@@ -65,7 +65,7 @@ export function CheckpointView() {
               <Button variant="outline" className="w-full">
                 View Details
               </Button>
-            </CardContent>
+            </div>
           </Card>
         ))}
       </div>
