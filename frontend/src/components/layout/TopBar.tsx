@@ -24,10 +24,10 @@ export function TopBar() {
         <h2 className="text-lg font-semibold">Welcome back, {user?.email}</h2>
       </div>
 
-      <Button variant="ghost" onClick={handleLogout}>
-        <LogOut className="mr-2 h-4 w-4" />
+      <BrutalButton variant="mono" onClick={handleLogout}>
+        <LogOut className="mr-2 h-4 w-4" style={{ display: 'inline' }} />
         Logout
-      </Button>
+      </BrutalButton>
     </header>
   );
 }

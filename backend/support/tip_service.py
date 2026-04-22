@@ -15,7 +15,7 @@ from backend.shared.db.models import LearningParameter
 from backend.shared.db.repositories.tip_repository import TipLogCreate, TipRepository
 from backend.shared.llm.prompts import build_tip_prompt
 from backend.shared.llm.schemas import TipSchema
-from backend.shared.llm_gateway.client import llm_call
+from backend.shared.llm.gateway import llm_call
 
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,9 @@ async def generate_tip(
     try:
         llm_result = await llm_call(
             prompt=prompt,
+            system_prompt="You are an expert tutor. Provide a constructive tip based on the failure.",
             response_schema=TipSchema,
+            fallback=FALLBACK_TIP,
             temperature=0.0,
         )
     except Exception:

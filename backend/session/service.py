@@ -105,7 +105,7 @@ async def complete_session(
 
     session.protocol_steps_completed = completed_steps
     session.protocol_violations = [] if protocol_result.passed else [protocol_result.reason]
-    session.status = "completed"
+    session.status = "failed" if session.protocol_violations or not passed else "completed"
     session.failure_reason = None if passed else failure_reason
     session.ended_at = datetime.now(timezone.utc)
 

@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 
 import { checkpointApi } from "../api/checkpointApi";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { BrutalButton as Button } from '../brutal/BrutalButton';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 interface Checkpoint {

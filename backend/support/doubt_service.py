@@ -15,7 +15,7 @@ from backend.shared.db.models import Roadmap, Session
 from backend.shared.db.repositories.doubt_repository import DoubtLogCreate, DoubtRepository
 from backend.shared.llm.prompts import build_doubt_prompt
 from backend.shared.llm.schemas import DoubtAnswerSchema
-from backend.shared.llm_gateway.client import llm_call
+from backend.shared.llm.gateway import llm_call
 
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,9 @@ async def answer_doubt(
     try:
         llm_result = await llm_call(
             prompt=prompt,
+            system_prompt="You are an expert tutor. Provide a clear, helpful response explaining the query in JSON format.",
             response_schema=DoubtAnswerSchema,
+            fallback=FALLBACK_DOUBT_ANSWER,
             temperature=0.2,
         )
     except Exception:
