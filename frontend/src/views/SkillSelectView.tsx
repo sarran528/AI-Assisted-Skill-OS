@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
+import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { BrutalButton as Button } from '../components/brutal/BrutalButton';
 import { Badge } from '../components/ui/badge';
 
 interface Skill {

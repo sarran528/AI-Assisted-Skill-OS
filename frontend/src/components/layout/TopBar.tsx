@@ -1,6 +1,6 @@
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/authApi';
-import { Button } from '../ui/button';
+import { BrutalButton as Button } from '../brutal/BrutalButton';
 import { LogOut } from 'lucide-react';
 
 export function TopBar() {
