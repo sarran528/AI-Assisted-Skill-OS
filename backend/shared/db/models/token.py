@@ -16,7 +16,7 @@ class RefreshToken(Base):
         default=lambda: str(uuid4()),
         server_default=text("uuid_generate_v4()"),
     )
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    user_id = Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
     token_hash = Column(Text, nullable=False)
     jti = Column(String(36), nullable=False, unique=True)
     issued_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
@@ -36,7 +36,7 @@ class RevokedAccessToken(Base):
     __tablename__ = "revoked_access_tokens"
 
     jti = Column(String(36), primary_key=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    user_id = Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
