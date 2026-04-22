@@ -1,5 +1,8 @@
+from datetime import datetime
+from uuid import uuid4
+
 from sqlalchemy import Column, DateTime, ForeignKey, Index, String, Text, text
-from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.dialects.postgresql import INET, UUID as PG_UUID
 
 from backend.shared.db.base import Base
 
@@ -7,14 +10,19 @@ from backend.shared.db.base import Base
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(
+        PG_UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+        server_default=text("uuid_generate_v4()"),
+    )
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     token_hash = Column(Text, nullable=False)
-    jti = Column(UUID(as_uuid=True), nullable=False, unique=True)
-    issued_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    jti = Column(String(36), nullable=False, unique=True)
+    issued_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
-    ip_address = Column(INET, nullable=True)
+    ip_address = Column(String(45), nullable=True)  # Changed from INET for SQLite compat
     user_agent = Column(Text, nullable=True)
 
 
@@ -27,9 +35,9 @@ Index("rt_expires_idx", RefreshToken.expires_at)
 class RevokedAccessToken(Base):
     __tablename__ = "revoked_access_tokens"
 
-    jti = Column(UUID(as_uuid=True), primary_key=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    revoked_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    jti = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 

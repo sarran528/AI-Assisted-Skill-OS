@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from backend.auth.dependencies import get_current_user
+from backend.auth.schemas import UserResponse
 from backend.shared.db.models.user import User
 from backend.user.schemas import UserResponse
 
