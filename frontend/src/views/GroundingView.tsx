@@ -4,7 +4,7 @@ import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
 import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
-import { Slider } from '../components/ui/Slider';
+import { Input } from '../components/ui/Input';
 
 export function GroundingView() {
   const navigate = useNavigate();
@@ -85,10 +85,11 @@ export function GroundingView() {
             <div className="mb-4 text-3xl font-bold text-center">
               {scores[scoreKey].toFixed(1)} / {currentStep.max}
             </div>
-            <Slider
-              value={[scores[scoreKey]]}
-              onValueChange={(value) =>
-                setScores({ ...scores, [scoreKey]: value[0] })
+            <Input
+              type="range"
+              value={scores[scoreKey]}
+              onChange={(e) =>
+                setScores({ ...scores, [scoreKey]: parseFloat(e.target.value) })
               }
               min={0}
               max={currentStep.max}

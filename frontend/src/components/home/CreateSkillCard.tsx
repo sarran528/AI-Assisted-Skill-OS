@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { BrutalButton } from "../brutal/BrutalButton";
 import { BrutalCard } from "../brutal/BrutalCard";
-import { BrutalInput } from "../brutal/BrutalInput";
+import { Input } from "../ui/Input";
 
 /**
  * CreateSkillCard
@@ -23,7 +23,7 @@ export function CreateSkillCard() {
         <p className="create-skill-card__description">
           Select domain → complete grounding → generate roadmap
         </p>
-        <BrutalInput placeholder="Enter a skill..." />
+        <Input placeholder="Enter a skill..." />
         <BrutalButton
           data-testid="create-skill-action"
           variant="mono"

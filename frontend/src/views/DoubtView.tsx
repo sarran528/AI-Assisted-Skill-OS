@@ -3,7 +3,7 @@ import { useSessionStore } from '../store/sessionStore';
 import { doubtApi } from '../api/doubtApi';
 import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
-import { Textarea } from '../components/ui/Textarea';
+import { Input } from '../components/ui/Input';
 
 export function DoubtView() {
   const session = useSessionStore((state) => state.session);
@@ -60,7 +60,8 @@ export function DoubtView() {
           <CardTitle>Your Question</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
+          <Input
+            textarea
             placeholder="Ask your question about the current technique..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
