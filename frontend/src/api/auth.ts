@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import axiosClient from "./axiosClient";
 import type { AuthResponse } from "../types";
 
 export interface AuthRequest {
@@ -7,11 +7,11 @@ export interface AuthRequest {
 }
 
 export async function registerUser(payload: AuthRequest): Promise<AuthResponse> {
-  const response = await apiClient.post("/auth/register", payload);
+  const response = await axiosClient.post("/auth/register", payload);
   return response.data;
 }
 
 export async function loginUser(payload: AuthRequest): Promise<AuthResponse> {
-  const response = await apiClient.post("/auth/login", payload);
+  const response = await axiosClient.post("/auth/login", payload);
   return response.data;
 }

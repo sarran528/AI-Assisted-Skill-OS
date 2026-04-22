@@ -31,7 +31,7 @@ export function RegisterView() {
     onSuccess: (data: any) => {
       const token = data.accessToken || data.access_token;
       setToken(token);
-      setUser({ userId: data.userId || data.user_id || "new-user", email: data.email ?? "" });
+      setUser({ id: data.userId || data.user_id || "new-user", email: data.email ?? "" });
       navigate("/dashboard");
     },
   });

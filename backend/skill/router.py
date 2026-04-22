@@ -17,9 +17,12 @@ from backend.skill.schemas import (
 from backend.skill.grounding_schemas import (
     GroundingProbeResponses,
     BaselineSkillStateResponse,
+    GroundingProbeSubmit,
+    BaselineStateResponse,
 )
 from backend.skill.service import SkillTemplateService
 from backend.skill.grounding_service import GroundingService
+from backend.shared.db.repositories.grounding_repository import GroundingRepository
 from backend.skill.intelligence_service import SkillIntelligenceService
 from backend.shared.db.models import CognitiveProfile
 from backend.assessment.profile_vector import ProfileVector
@@ -54,6 +57,14 @@ async def list_skills(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list skills: {str(e)}",
         )
+
+
+@router.get("/list", response_model=list[SkillListResponse])
+async def list_skills_alias(
+    current_user: dict = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    return await list_skills(current_user=current_user, db_session=db_session)
 
 
 @router.get("/{skill_id}", response_model=SkillTemplateResponse)
@@ -169,9 +180,9 @@ async def update_skill(
         )
 
 
-@router.post("/baseline", response_model=BaselineSkillStateResponse)
+@router.post("/baseline", response_model=BaselineStateResponse)
 async def submit_grounding(
-    payload: GroundingProbeResponses,
+    payload: GroundingProbeResponses | GroundingProbeSubmit,
     request: Request,
     current_user: dict = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
@@ -202,10 +213,41 @@ async def submit_grounding(
             time_constraint=float(profile_record.time_constraint),
         )
         
-        # Submit grounding
-        service = GroundingService(db_session)
         ip_address = request.client.host if request.client else "127.0.0.1"
-        
+
+        if isinstance(payload, GroundingProbeSubmit):
+            normalized_confidence = max(0.0, min(1.0, payload.confidence_bias / 5.0))
+            perceived_level = (payload.recognition_score + payload.declarative_score + normalized_confidence) / 3.0
+            confidence_bias_value = max(-1.0, min(1.0, perceived_level - profile.cognitive_capacity))
+
+            repo = GroundingRepository(db_session)
+            await repo.create_baseline(
+                user_id=current_user["user"].id,
+                skill_id=payload.skill_id,
+                exposure_score=payload.recognition_score,
+                declarative_score=payload.declarative_score,
+                confidence_score=normalized_confidence,
+                perceived_level=perceived_level,
+                actual_level=profile.cognitive_capacity,
+                confidence_bias=confidence_bias_value,
+                raw_responses={"recognition_score": payload.recognition_score, "declarative_score": payload.declarative_score},
+            )
+
+            adjusted_repetition_intensity = max(
+                0.0,
+                min(1.0, 1.0 - ((payload.recognition_score + payload.declarative_score) / 2.0)),
+            )
+
+            return BaselineStateResponse(
+                skill_id=payload.skill_id,
+                exposure_score=payload.recognition_score,
+                declarative_knowledge=payload.declarative_score,
+                confidence_bias=payload.confidence_bias,
+                adjusted_repetition_intensity=adjusted_repetition_intensity,
+            )
+
+        # Submit grounding with full probe responses
+        service = GroundingService(db_session)
         response = await service.submit_grounding(
             user_id=current_user["user"].id,
             skill_id=payload.skill_id,
@@ -213,8 +255,19 @@ async def submit_grounding(
             profile=profile,
             ip_address=ip_address,
         )
-        
-        return response
+
+        adjusted_repetition_intensity = max(
+            0.0,
+            min(1.0, 1.0 - ((response.exposure_score + response.declarative_score) / 2.0)),
+        )
+
+        return BaselineStateResponse(
+            skill_id=response.skill_id,
+            exposure_score=float(response.exposure_score),
+            declarative_knowledge=float(response.declarative_score),
+            confidence_bias=float(response.confidence_bias),
+            adjusted_repetition_intensity=adjusted_repetition_intensity,
+        )
         
     except BusinessError as e:
         raise HTTPException(
@@ -226,6 +279,31 @@ async def submit_grounding(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit grounding: {str(e)}",
         )
+
+
+@router.get("/{skill_id}/baseline", response_model=BaselineStateResponse)
+async def get_baseline(
+    skill_id: str,
+    current_user: dict = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> BaselineStateResponse:
+    repo = GroundingRepository(db_session)
+    baseline = await repo.get_latest_baseline(current_user["user"].id, skill_id)
+    if baseline is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="baseline_not_found")
+
+    adjusted_repetition_intensity = max(
+        0.0,
+        min(1.0, 1.0 - ((float(baseline.exposure_score) + float(baseline.declarative_score)) / 2.0)),
+    )
+
+    return BaselineStateResponse(
+        skill_id=baseline.skill_id,
+        exposure_score=float(baseline.exposure_score),
+        declarative_knowledge=float(baseline.declarative_score),
+        confidence_bias=float(baseline.confidence_bias),
+        adjusted_repetition_intensity=adjusted_repetition_intensity,
+    )
 
 
 @router.post("/research", response_model=SkillResearchObject)

@@ -1,17 +1,19 @@
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
+import { useRoadmapStore } from "../store/roadmapStore";
 import { useRoadmap } from "../hooks/useRoadmap";
 
 export function RoadmapView() {
-  const { skillId } = useParams<{ skillId: string }>();
-  const { roadmap, generateRoadmap, getRoadmapStatus, error } = useRoadmap(skillId);
+  const userId = useAuthStore((state) => state.user?.id);
+  const skillId = useRoadmapStore((state) => state.targetSkillId);
+  const { roadmap, generateRoadmap, getRoadmapStatus, error } = useRoadmap(userId, skillId);
 
   useEffect(() => {
-    if (!roadmap) {
-      generateRoadmap(skillId, {
+    if (!roadmap && userId && skillId) {
+      generateRoadmap({ userId, skillId }, {
         onSuccess: (data) => {
           const poll = setInterval(() => {
-            getRoadmapStatus(data.job_id, {
+            getRoadmapStatus(userId, {
               onSuccess: (statusData) => {
                 if (statusData.status !== "queued") {
                   clearInterval(poll);
@@ -22,7 +24,15 @@ export function RoadmapView() {
         },
       });
     }
-  }, [roadmap, skillId, generateRoadmap, getRoadmapStatus]);
+  }, [roadmap, userId, skillId, generateRoadmap, getRoadmapStatus]);
+
+  if (!userId) {
+    return <div>Sign in to view your roadmap.</div>;
+  }
+
+  if (!skillId) {
+    return <div>Select a skill to generate a roadmap.</div>;
+  }
 
   if (error) {
     return <div>Error loading roadmap</div>;

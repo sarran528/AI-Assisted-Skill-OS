@@ -1,10 +1,13 @@
-import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useSession, useSubmitSessionMetrics } from "../hooks/useSession";
+import { useSessionStore } from "../store/sessionStore";
 
 export function SessionView() {
-  const { sessionId } = useParams<{ sessionId: string }>();
-  const { session, error } = useSession(sessionId);
+  const [searchParams] = useSearchParams();
+  const storedSession = useSessionStore((state) => state.session);
+  const sessionId = useMemo(() => searchParams.get("sessionId") || storedSession?.session_id || "", [searchParams, storedSession]);
+  const { session, error } = useSession(sessionId || undefined);
   const { mutate: submitMetrics } = useSubmitSessionMetrics();
 
   useEffect(() => {

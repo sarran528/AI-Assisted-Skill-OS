@@ -21,10 +21,8 @@ QUERY_CACHE_TTL_SECONDS = 30 * 60
 @dataclass(slots=True)
 class ResourceItem:
     title: str
-    content: str
+    url: str | None
     doc_type: str
-    phase: str | None
-    relevance_score: float
 
 
 @dataclass(slots=True)
@@ -107,10 +105,8 @@ async def get_resources(
         resources=[
             ResourceItem(
                 title=_derive_title(chunk),
-                content=chunk.content,
+                url=chunk.source_url,
                 doc_type=chunk.doc_type,
-                phase=chunk.phase,
-                relevance_score=chunk.similarity_score,
             )
             for chunk in chunks
         ],

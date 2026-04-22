@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -7,7 +7,7 @@ export function AppShell() {
   const token = useAuthStore((state) => state.token);
 
   if (!token) {
-    return <Outlet />;
+    return <Navigate to="/login" replace />;
   }
 
   return (

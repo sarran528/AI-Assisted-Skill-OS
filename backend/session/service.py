@@ -129,7 +129,7 @@ async def complete_session(
         passed=passed,
         failure_reason=session.failure_reason,
         tip_pending=tip_pending,
-        tip_poll_url=f"/support/tip/{session.id}" if tip_pending else None,
+        tip_poll_url=f"/tip/{session.id}" if tip_pending else None,
     )
 
 

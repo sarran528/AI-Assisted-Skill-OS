@@ -1,19 +1,19 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { generateRoadmap, getRoadmap, getRoadmapStatus } from "../api/roadmap";
 
-export function useRoadmap(skillId: string | undefined) {
+export function useRoadmap(userId: string | undefined, skillId: string | undefined) {
   const { data: roadmap, error } = useQuery({
-    queryKey: ["roadmap", skillId],
-    queryFn: () => getRoadmap(skillId!),
-    enabled: !!skillId,
+    queryKey: ["roadmap", userId],
+    queryFn: () => getRoadmap(userId!),
+    enabled: !!userId,
   });
 
   const { mutate: generateRoadmapMutate } = useMutation({
-    mutationFn: (skillId: string) => generateRoadmap({ skill_id: skillId }),
+    mutationFn: (payload: { userId: string; skillId: string }) => generateRoadmap({ skill_id: payload.skillId }),
   });
 
   const { mutate: getRoadmapStatusMutate } = useMutation({
-    mutationFn: (jobId: string) => getRoadmapStatus(jobId),
+    mutationFn: (userId: string) => getRoadmapStatus(userId),
   });
 
   return {

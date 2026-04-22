@@ -15,10 +15,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.assessment.schemas import AssessmentResponse, AssessmentSubmission, ProfileResponse
+from backend.assessment.schemas import AssessmentResponse, AssessmentSubmission, ProfileResponse, RawMetrics, RawTimeConstraint
 from backend.assessment.service import process_assessment_levels
 from backend.auth.dependencies import get_current_user
-from backend.shared.db.models import AssessmentSession
+from backend.shared.db.models import AssessmentSession, CognitiveProfile
 from backend.shared.db.session import get_db_session
 from backend.shared.rate_limit import limiter
 
@@ -52,11 +52,29 @@ async def start_assessment(
     }
 
 
+def _map_level_id(level_id: str | int) -> int:
+    mapping = {
+        "executive_control": 1,
+        "sustained_attention": 2,
+        "learning_endurance": 3,
+        "motor_precision": 4,
+        "pressure_adaptation": 5,
+        "time_structuring": 6,
+    }
+    if isinstance(level_id, int):
+        return level_id
+    if isinstance(level_id, str) and level_id.isdigit():
+        return int(level_id)
+    if isinstance(level_id, str) and level_id in mapping:
+        return mapping[level_id]
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_level_id")
+
+
 @router.post("/submit", response_model=AssessmentResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def submit_assessment(
     request: Request,
-    submission: AssessmentSubmission,
+    payload: dict,
     current_user: dict = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> AssessmentResponse:
@@ -102,6 +120,30 @@ async def submit_assessment(
         HTTPException 400: Invalid submission data.
         HTTPException 429: Rate limit exceeded.
     """
+    if "level_id" in payload:
+        level = _map_level_id(payload.get("level_id"))
+        raw_metrics = RawMetrics(
+            accuracy=float(payload.get("accuracy", 0)) * 100 if float(payload.get("accuracy", 0)) <= 1 else float(payload.get("accuracy", 0)),
+            expected_time=float(payload.get("mean_response_time", 0)),
+            latency_stability=float(payload.get("response_time_variance", 0)),
+            decay_inverse=max(0.0, 1.0 - float(payload.get("performance_decay", 0))),
+            dropout=int(payload.get("dropout_depth_index", 0)),
+            retry=int(payload.get("retry_depth", 0)),
+            recovery=float(payload.get("recovery_slope", 0)),
+        )
+        time_constraint = RawTimeConstraint(
+            available_hours_per_week=float(payload.get("available_hours_per_week", 0)),
+            preferred_session_length=float(payload.get("preferred_session_length", 0)),
+        )
+        submission = AssessmentSubmission(
+            session_id=payload.get("session_id"),
+            level=level,
+            metrics=raw_metrics,
+            time_constraint=time_constraint,
+        )
+    else:
+        submission = AssessmentSubmission.model_validate(payload)
+
     user_id = current_user["user"].id
     session_id = submission.session_id
     session = None
@@ -199,4 +241,29 @@ async def complete_assessment(
         stress_resilience=profile.profile_vector.stress_resilience,
         time_constraint=profile.profile_vector.time_constraint,
     )
+
+
+@router.get("/status")
+@limiter.limit("30/minute")
+async def assessment_status(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _ = request
+    user_id = current_user["user"].id
+    session = await db_session.scalar(
+        select(AssessmentSession)
+        .where(AssessmentSession.user_id == user_id)
+        .order_by(AssessmentSession.created_at.desc())
+        .limit(1)
+    )
+    completed_levels = list(session.completed_levels or []) if session else []
+    profile_exists = await db_session.scalar(
+        select(CognitiveProfile.id).where(CognitiveProfile.user_id == user_id)
+    )
+    return {
+        "levels_completed": completed_levels,
+        "profile_active": profile_exists is not None,
+    }
 

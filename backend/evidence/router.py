@@ -40,7 +40,7 @@ async def upload_evidence_route(
     )
 
 
-@router.get("/session/{session_id}", response_model=EvidenceListResponse)
+@router.get("/{session_id}", response_model=EvidenceListResponse)
 async def list_evidence_route(
     session_id: UUID,
     db_session: AsyncSession = Depends(get_db_session),

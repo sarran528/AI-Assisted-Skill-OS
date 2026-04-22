@@ -1,5 +1,5 @@
 export interface AuthUser {
-  userId: string;
+  id: string;
   email: string;
 }
 
@@ -109,26 +109,21 @@ export interface CheckpointValidationResponse {
 }
 
 export interface DoubtAnswerResponse {
-  answer: string;
-  confidence: "low" | "medium" | "high";
-  caveat?: string;
-  sources_used?: number;
+  explanation: string;
+  sources_used: number;
 }
 
 export interface SupportResourceItem {
-  id: string;
+  title: string;
+  url: string;
   doc_type: string;
-  snippet: string;
-  relevance: number;
 }
 
 export interface SupportResourcesResponse {
-  items: SupportResourceItem[];
+  resources: SupportResourceItem[];
 }
 
 export interface TipResponse {
-  available: boolean;
-  severity?: "minor" | "moderate" | "critical";
-  text?: string;
-  focus_step?: string;
+  tip: string;
+  trigger_reason: string;
 }

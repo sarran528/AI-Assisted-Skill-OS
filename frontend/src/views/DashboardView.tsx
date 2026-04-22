@@ -6,6 +6,7 @@ import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { StatBlock } from "../components/brutal/StatBlock";
 import { useRecentSessions, useStartSession } from "../hooks/useSession";
+import { useSessionStore } from "../store/sessionStore";
 import { useSkills } from "../hooks/useSkills";
 import type { SkillItem } from "../types";
 import {
@@ -18,6 +19,7 @@ import {
 export function DashboardView() {
   const navigate = useNavigate();
   const [selectedSkill, setSelectedSkill] = useState<string>("");
+  const setSession = useSessionStore((state) => state.setSession);
 
   const skillsQuery = useSkills();
   const startSessionMutation = useStartSession();
@@ -43,7 +45,8 @@ export function DashboardView() {
       },
       {
         onSuccess: (data) => {
-          navigate(`/session/${data.session_id}`);
+          setSession({ session_id: data.session_id, status: data.status });
+          navigate("/session");
         },
       }
     );

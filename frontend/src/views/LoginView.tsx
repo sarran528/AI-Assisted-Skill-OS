@@ -8,6 +8,7 @@ import { loginUser } from "../api/auth";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useAuthStore } from "../store/authStore";
+import axiosClient from "../api/axiosClient";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -19,6 +20,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 export function LoginView() {
   const navigate = useNavigate();
   const setToken = useAuthStore((state) => state.setToken);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const { register, handleSubmit, formState } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -30,7 +32,11 @@ export function LoginView() {
     onSuccess: (data: any) => {
       const token = data.accessToken || data.access_token;
       setToken(token);
-      navigate("/dashboard");
+      axiosClient
+        .get("/users/me")
+        .then((res) => setUser({ id: res.data.id, email: res.data.email }))
+        .catch(() => setUser(null))
+        .finally(() => navigate("/dashboard"));
     },
   });
 

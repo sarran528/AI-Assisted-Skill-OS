@@ -35,7 +35,7 @@ export const roadmapApi = {
     axiosClient.get<RoadmapResponse>(`/roadmap/${userId}`),
 
   getRoadmapStatus: (userId: string) =>
-    axiosClient.get<{ status: string; job_id: string }>(`/roadmap/${userId}/status`),
+    axiosClient.get<{ status: string; job_id: string | null }>(`/roadmap/${userId}/status`),
 
   abandonRoadmap: (roadmapId: string) =>
     axiosClient.patch<{ status: string }>(`/roadmap/${roadmapId}/abandon`),

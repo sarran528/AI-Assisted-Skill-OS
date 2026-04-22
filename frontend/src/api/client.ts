@@ -13,7 +13,7 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & {
 };
 
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -36,7 +36,7 @@ apiClient.interceptors.response.use(
           return apiClient.request(originalRequest);
         }
       } catch {
-        useAuthStore.getState().logout();
+        useAuthStore.getState().clearAuth();
       }
     }
 

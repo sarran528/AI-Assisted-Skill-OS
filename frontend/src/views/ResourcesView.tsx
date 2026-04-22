@@ -1,79 +1,64 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { checkpointApi } from '../api/checkpointApi';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
-interface Checkpoint {
-  checkpoint_id: string;
-  status: string;
-  phase: string;
+import { resourceApi } from "../api/resourceApi";
+import { useRoadmapStore } from "../store/roadmapStore";
+import { Badge } from "../components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+
+interface ResourceItem {
+  title: string;
+  url: string;
+  doc_type: string;
 }
 
-export function CheckpointView() {
+export function ResourcesView() {
   const [searchParams] = useSearchParams();
-  const roadmapId = searchParams.get('roadmapId');
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const skillId = useRoadmapStore((state) => state.roadmap?.skill_id || state.targetSkillId || "");
+  const phase = searchParams.get("phase") || "";
+  const techniqueId = searchParams.get("technique_id") || undefined;
+  const [resources, setResources] = useState<ResourceItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!roadmapId) return;
-    checkpointApi
-      .listCheckpoints(roadmapId)
-      .then((res) => setCheckpoints(res.data))
+    if (!skillId || !phase) return;
+    setLoading(true);
+    resourceApi
+      .getResources(skillId, phase, techniqueId)
+      .then((res) => setResources(res.data.resources))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [roadmapId]);
+  }, [skillId, phase, techniqueId]);
 
-  if (loading) return <div className="p-8">Loading checkpoints...</div>;
+  if (!skillId) return <div className="p-8">Select a skill to view resources.</div>;
+  if (!phase) return <div className="p-8">Select a phase to view resources.</div>;
+  if (loading) return <div className="p-8">Loading resources...</div>;
 
   return (
     <div className="space-y-8 p-8">
       <div>
-        <h1 className="text-3xl font-bold">Checkpoints</h1>
-        <p className="text-muted-foreground">Track your progress through key milestones</p>
+        <h1 className="text-3xl font-bold">Resources</h1>
+        <p className="text-muted-foreground">Curated material for your current phase</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {checkpoints.map((cp) => (
-          <Card key={cp.checkpoint_id}>
+        {resources.map((resource) => (
+          <Card key={resource.url}>
             <CardHeader>
-              <CardTitle className="text-lg">{cp.checkpoint_id}</CardTitle>
+              <CardTitle className="text-lg">{resource.title}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Phase</p>
-                <p className="font-medium">{cp.phase}</p>
-              </div>
-
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge
-                  variant={
-                    cp.status === 'completed'
-                      ? 'default'
-                      : cp.status === 'active'
-                        ? 'secondary'
-                        : 'outline'
-                  }
-                >
-                  {cp.status}
-                </Badge>
-              </div>
-
-              <Button variant="outline" className="w-full">
-                View Details
-              </Button>
+            <CardContent className="space-y-2">
+              <Badge variant="secondary">{resource.doc_type}</Badge>
+              <a className="text-primary underline" href={resource.url} target="_blank" rel="noreferrer">
+                Open resource
+              </a>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {checkpoints.length === 0 && (
-        <div className="text-center text-muted-foreground">
-          No checkpoints available yet.
-        </div>
+      {resources.length === 0 && (
+        <div className="text-center text-muted-foreground">No resources available yet.</div>
       )}
     </div>
   );

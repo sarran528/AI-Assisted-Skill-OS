@@ -1,8 +1,8 @@
-import { apiClient } from "./client";
+import axiosClient from "./axiosClient";
 import type { Session, SessionCompleteResponse, SessionListItem, SessionMetricsPayload, SessionStartResponse } from "../types";
 
 export async function getSession(sessionId: string): Promise<Session> {
-  const response = await apiClient.get(`/sessions/${sessionId}`);
+  const response = await axiosClient.get(`/session/${sessionId}`);
   return response.data;
 }
 
@@ -11,12 +11,12 @@ export async function startSession(payload: {
   phase: string;
   technique_id: string;
 }): Promise<SessionStartResponse> {
-  const response = await apiClient.post("/sessions/start", payload);
+  const response = await axiosClient.post("/session/start", payload);
   return response.data;
 }
 
 export async function submitSessionMetrics(payload: SessionMetricsPayload): Promise<unknown> {
-  const response = await apiClient.post("/sessions/metrics", payload);
+  const response = await axiosClient.post("/session/metrics", payload);
   return response.data;
 }
 
@@ -24,11 +24,11 @@ export async function completeSession(payload: {
   session_id: string;
   completed_steps: string[];
 }): Promise<SessionCompleteResponse> {
-  const response = await apiClient.post("/sessions/complete", payload);
+  const response = await axiosClient.post("/session/complete", payload);
   return response.data;
 }
 
 export async function getRecentSessions(limit = 5): Promise<SessionListItem[]> {
-  const response = await apiClient.get("/sessions/recent", { params: { limit } });
+  const response = await axiosClient.get("/session/recent", { params: { limit } });
   return response.data.items ?? [];
 }

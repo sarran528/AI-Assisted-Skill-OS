@@ -1,12 +1,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/auth";
+import { AppShell } from "./components/layout/AppShell";
 import { AssessmentView } from "./views/AssessmentView";
+import { CheckpointView } from "./views/CheckpointView";
 import { DashboardView } from "./views/DashboardView";
+import { DoubtView } from "./views/DoubtView";
+import { GroundingView } from "./views/GroundingView";
 import { LoginView } from "./views/LoginView";
+import { ProfileView } from "./views/ProfileView";
 import { RegisterView } from "./views/RegisterView";
+import { ResourcesView } from "./views/ResourcesView";
 import { RoadmapView } from "./views/RoadmapView";
 import { SessionView } from "./views/SessionView";
+import { SkillSelectView } from "./views/SkillSelectView";
 
 const queryClient = new QueryClient();
 
@@ -15,14 +22,22 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginView />} />
           <Route path="/register" element={<RegisterView />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardView />} />
-            <Route path="/assessment" element={<AssessmentView />} />
-            <Route path="/roadmap/:skillId" element={<RoadmapView />} />
-            <Route path="/session/:sessionId" element={<SessionView />} />
+            <Route element={<AppShell />}>
+              <Route path="/dashboard" element={<DashboardView />} />
+              <Route path="/assessment" element={<AssessmentView />} />
+              <Route path="/profile" element={<ProfileView />} />
+              <Route path="/skill/select" element={<SkillSelectView />} />
+              <Route path="/skill/grounding" element={<GroundingView />} />
+              <Route path="/roadmap" element={<RoadmapView />} />
+              <Route path="/session" element={<SessionView />} />
+              <Route path="/checkpoint/:roadmapId" element={<CheckpointView />} />
+              <Route path="/resources" element={<ResourcesView />} />
+              <Route path="/doubt" element={<DoubtView />} />
+            </Route>
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
