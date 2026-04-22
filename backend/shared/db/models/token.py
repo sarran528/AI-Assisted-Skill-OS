@@ -18,7 +18,7 @@ class RefreshToken(Base):
     )
     user_id = Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
     token_hash = Column(Text, nullable=False)
-    jti = Column(String(36), nullable=False, unique=True)
+    jti = Column(PG_UUID(as_uuid=False), nullable=False, unique=True)
     issued_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
@@ -35,7 +35,7 @@ Index("rt_expires_idx", RefreshToken.expires_at)
 class RevokedAccessToken(Base):
     __tablename__ = "revoked_access_tokens"
 
-    jti = Column(String(36), primary_key=True)
+    jti = Column(PG_UUID(as_uuid=False), primary_key=True)
     user_id = Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
