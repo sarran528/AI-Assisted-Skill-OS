@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { checkpointApi } from "../api/checkpointApi";
-import { Badge } from "../components/ui/badge";
-import { BrutalButton as Button } from '../brutal/BrutalButton';
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/Badge";
+import { BrutalButton as Button } from '../components/brutal/BrutalButton';
+import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from "../components/brutal/BrutalCard";
 
 interface Checkpoint {
   checkpoint_id: string;

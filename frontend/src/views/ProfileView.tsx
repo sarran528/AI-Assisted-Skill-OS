@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
 import { profileApi } from '../api/profileApi';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { Badge } from '../components/ui/Badge';
 
 export function ProfileView() {
   const user = useAuthStore((state) => state.user);

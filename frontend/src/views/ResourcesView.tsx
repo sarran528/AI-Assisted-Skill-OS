@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router-dom";
 
 import { resourceApi } from "../api/resourceApi";
 import { useRoadmapStore } from "../store/roadmapStore";
-import { Badge } from "../components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/Badge";
+import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from "../components/brutal/BrutalCard";
 
 interface ResourceItem {
   title: string;

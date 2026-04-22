@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { doubtApi } from '../api/doubtApi';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
+import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { BrutalButton as Button } from '../components/brutal/BrutalButton';
+import { Textarea } from '../components/ui/Textarea';
 
 export function DoubtView() {
   const session = useSessionStore((state) => state.session);

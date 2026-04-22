@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Slider } from '../components/ui/slider';
+import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { BrutalButton as Button } from '../components/brutal/BrutalButton';
+import { Slider } from '../components/ui/Slider';
 
 export function GroundingView() {
   const navigate = useNavigate();
