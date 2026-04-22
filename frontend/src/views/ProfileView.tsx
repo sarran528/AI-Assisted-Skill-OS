@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
 import { profileApi } from '../api/profileApi';
-import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { BrutalCard as Card } from '../components/brutal/BrutalCard';
 import { Badge } from '../components/ui/Badge';
 
 export function ProfileView() {
@@ -43,67 +43,67 @@ export function ProfileView() {
       {/* Profile Dimensions */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Cognitive Capacity</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">Cognitive Capacity</h2>
+          </div>
+          <div className="p-4">
             <div className="text-3xl font-bold">{(profile.cognitive_capacity * 100).toFixed(1)}%</div>
-          </CardContent>
+          </div>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Attention Stability</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">Attention Stability</h2>
+          </div>
+          <div className="p-4">
             <div className="text-3xl font-bold">{(profile.attention_stability * 100).toFixed(1)}%</div>
-          </CardContent>
+          </div>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Learning Tolerance</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">Learning Tolerance</h2>
+          </div>
+          <div className="p-4">
             <div className="text-3xl font-bold">{(profile.learning_tolerance * 100).toFixed(1)}%</div>
-          </CardContent>
+          </div>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Motor Baseline</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">Motor Baseline</h2>
+          </div>
+          <div className="p-4">
             <div className="text-3xl font-bold">{(profile.motor_baseline * 100).toFixed(1)}%</div>
-          </CardContent>
+          </div>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Stress Resilience</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 classNameVlog="text-lg font-bold">Stress Resilience</h2>
+          </div>
+          <div className="p-4">
             <div className="text-3xl font-bold">{(profile.stress_resilience * 100).toFixed(1)}%</div>
-          </CardContent>
+          </div>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Time Constraint</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">Time Constraint</h2>
+          </div>
+          <div className="p-4">
             <div className="text-3xl font-bold">{(profile.time_constraint * 100).toFixed(1)}%</div>
-          </CardContent>
+          </div>
         </Card>
       </div>
 
       {/* Learning Parameters */}
       {parameters && (
         <Card>
-          <CardHeader>
-            <CardTitle>Learning Parameters ({Object.keys(parameters).length})</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">Learning Parameters ({Object.keys(parameters).length})</h2>
+          </div>
+          <div className="p-4">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
               {Object.entries(parameters).map(([key, value]) => (
                 <div key={key}>
@@ -112,7 +112,7 @@ export function ProfileView() {
                 </div>
               ))}
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
     </div>

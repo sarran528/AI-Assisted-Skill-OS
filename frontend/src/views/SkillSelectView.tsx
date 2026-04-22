@@ -4,9 +4,6 @@ import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
 import {
   BrutalCard as Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
 } from '../components/brutal/BrutalCard';
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
 import { Badge } from '../components/ui/Badge';
@@ -66,10 +63,10 @@ export function SkillSelectView() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((skill) => (
           <Card key={skill.skill_id} className="cursor-pointer hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-lg">{skill.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <div className="p-4">
+              <h2 className="text-lg font-bold">{skill.name}</h2>
+            </div>
+            <div className="p-4 space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">ID</p>
                 <p className="font-mono text-sm">{skill.skill_id}</p>
@@ -86,7 +83,7 @@ export function SkillSelectView() {
               >
                 Begin Grounding
               </Button>
-            </CardContent>
+            </div>
           </Card>
         ))}
       </div>

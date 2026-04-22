@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { resourceApi } from "../api/resourceApi";
 import { useRoadmapStore } from "../store/roadmapStore";
 import { Badge } from "../components/ui/Badge";
-import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from "../components/brutal/BrutalCard";
+import { BrutalCard as Card } from "../components/brutal/BrutalCard";
 
 interface ResourceItem {
   title: string;
@@ -44,15 +44,15 @@ export function ResourcesView() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {resources.map((resource) => (
           <Card key={resource.url}>
-            <CardHeader>
-              <CardTitle className="text-lg">{resource.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+            <div className="p-4">
+              <h2 className="text-lg font-bold">{resource.title}</h2>
+            </div>
+            <div className="p-4 space-y-2">
               <Badge variant="secondary">{resource.doc_type}</Badge>
               <a className="text-primary underline" href={resource.url} target="_blank" rel="noreferrer">
                 Open resource
               </a>
-            </CardContent>
+            </div>
           </Card>
         ))}
       </div>

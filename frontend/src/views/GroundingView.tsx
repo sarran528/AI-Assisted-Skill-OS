@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
-import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { BrutalCard as Card } from '../components/brutal/BrutalCard';
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
 import { Input } from '../components/ui/Input';
 
@@ -76,11 +76,11 @@ export function GroundingView() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>{currentStep.title}</CardTitle>
+        <div className="p-4">
+          <h2 className="text-lg font-bold">{currentStep.title}</h2>
           <p className="text-sm text-muted-foreground">{currentStep.description}</p>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        </div>
+        <div className="p-4 space-y-6">
           <div>
             <div className="mb-4 text-3xl font-bold text-center">
               {scores[scoreKey].toFixed(1)} / {currentStep.max}
@@ -117,7 +117,7 @@ export function GroundingView() {
               {step === 'confidence' ? 'Complete Grounding' : 'Next'}
             </Button>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   );

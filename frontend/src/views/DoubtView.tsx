@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { doubtApi } from '../api/doubtApi';
-import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import { BrutalCard as Card } from '../components/brutal/BrutalCard';
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
 import { Input } from '../components/ui/Input';
 
@@ -35,14 +35,14 @@ export function DoubtView() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>No Active Session</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-4">
+            <h2 className="text-lg font-bold">No Active Session</h2>
+          </div>
+          <div className="p-4">
             <p className="text-muted-foreground">
               Start a session to ask doubts about your learning content.
             </p>
-          </CardContent>
+          </div>
         </Card>
       </div>
     );
@@ -56,10 +56,10 @@ export function DoubtView() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Your Question</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <div className="p-4">
+          <h2 className="text-lg font-bold">Your Question</h2>
+        </div>
+        <div className="p-4 space-y-4">
           <Input
             textarea
             placeholder="Ask your question about the current technique..."
@@ -70,20 +70,20 @@ export function DoubtView() {
           <Button onClick={handleAskDoubt} disabled={!query || loading} className="w-full">
             {loading ? 'Thinking...' : 'Get Explanation'}
           </Button>
-        </CardContent>
+        </div>
       </Card>
 
       {response && (
         <Card>
-          <CardHeader>
-            <CardTitle>AI Response</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <div className="p-4">
+            <h2 className="text-lg font-bold">AI Response</h2>
+          </div>
+          <div className="p-4 space-y-4">
             <p className="whitespace-pre-wrap">{response.explanation}</p>
             <p className="text-sm text-muted-foreground">
               Based on {response.sources_used} source(s)
             </p>
-          </CardContent>
+          </div>
         </Card>
       )}
     </div>
