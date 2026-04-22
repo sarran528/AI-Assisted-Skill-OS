@@ -2,9 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
-import { BrutalCard as Card, CardContent, CardHeader, CardTitle } from '../components/brutal/BrutalCard';
+import {
+  BrutalCard as Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../components/brutal/BrutalCard';
 import { BrutalButton as Button } from '../components/brutal/BrutalButton';
-import { Badge } from '../components/ui/badge';
+import { Badge } from '../components/ui/Badge';
+import { Input } from '../components/ui/Input';
 
 interface Skill {
   skill_id: string;
@@ -48,12 +54,12 @@ export function SkillSelectView() {
       </div>
 
       <div>
-        <input
+        <Input
           type="text"
           placeholder="Search skills..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg border border-input bg-background px-4 py-2"
+          className="w-full"
         />
       </div>
 
