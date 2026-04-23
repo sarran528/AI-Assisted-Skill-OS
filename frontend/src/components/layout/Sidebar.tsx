@@ -21,15 +21,17 @@ export function Sidebar() {
             Assessment
           </NavLink>
         </div>
-        <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Profile
-        </NavLink>
-        <NavLink to="/skill/select" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Skills
-        </NavLink>
-        <NavLink to="/roadmap" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Roadmap
-        </NavLink>
+        <div className="nav-group">
+          <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
+            Profile
+          </NavLink>
+          <NavLink to="/skill/select" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
+            Skills
+          </NavLink>
+          <NavLink to="/roadmap" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
+            Roadmap
+          </NavLink>
+        </div>
         <NavLink to="/resources" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
           Resources
         </NavLink>
