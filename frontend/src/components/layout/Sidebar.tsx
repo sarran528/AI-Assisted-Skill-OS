@@ -13,12 +13,14 @@ export function Sidebar() {
     <aside className="sidebar">
       <h2 className="sidebar__title">SkillOS</h2>
       <nav>
-        <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/assessment" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Assessment
-        </NavLink>
+        <div className="nav-group">
+          <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
+            Dashboard
+          </NavLink>
+          <NavLink to="/assessment" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
+            Assessment
+          </NavLink>
+        </div>
         <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
           Profile
         </NavLink>

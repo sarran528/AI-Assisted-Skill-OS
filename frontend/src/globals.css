@@ -70,6 +70,17 @@ h3,
   color: #fff;
 }
 
+.nav-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.nav-group .nav-item {
+  text-align: center;
+  margin-bottom: 0;
+}
+
 .main-panel,
 .right-panel {
   display: flex;
