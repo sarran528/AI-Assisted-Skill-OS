@@ -13,7 +13,10 @@ const axiosClient: AxiosInstance = axios.create({
 // Request interceptor: add auth token
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token;
+    // Get the latest token from store state
+    const authState = useAuthStore.getState();
+    const token = authState.token;
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

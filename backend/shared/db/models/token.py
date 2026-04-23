@@ -22,7 +22,7 @@ class RefreshToken(Base):
     issued_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
-    ip_address = Column(String(45), nullable=True)  # Changed from INET for SQLite compat
+    ip_address = Column(INET, nullable=True)  # Use INET type for PostgreSQL compatibility
     user_agent = Column(Text, nullable=True)
 
 

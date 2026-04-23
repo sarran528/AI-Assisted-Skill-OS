@@ -1,18 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { skillApi } from '../api/skillApi';
 import { useRoadmapStore } from '../store/roadmapStore';
-import {
-  BrutalCard as Card,
-} from '../components/brutal/BrutalCard';
-import { BrutalButton as Button } from '../components/brutal/BrutalButton';
-import { Badge } from '../components/ui/Badge';
+import { SkillCard, Skill } from '../components/skill/SkillCard';
 import { Input } from '../components/ui/Input';
 
-interface Skill {
-  skill_id: string;
-  name: string;
-  complexity: number;
+// Type safety for API responses
+interface SkillApiResponse {
+  data: Skill[];
+}
+
+// Custom debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 }
 
 export function SkillSelectView() {
@@ -21,27 +33,69 @@ export function SkillSelectView() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // Debounce search input for performance
+  const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
     skillApi
       .listSkills()
-      .then((res) => setSkills(res.data))
-      .catch(console.error)
+      .then((res: SkillApiResponse) => {
+        setSkills(res.data);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Failed to load skills. Please try again later.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = skills.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.skill_id.toLowerCase().includes(search.toLowerCase())
+  // Memoize filtered skills for performance
+  const filtered = useMemo(
+    () =>
+      skills.filter(
+        (s) =>
+          s.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          s.skill_id.toLowerCase().includes(debouncedSearch.toLowerCase())
+      ),
+    [skills, debouncedSearch]
   );
 
-  const handleSelectSkill = (skillId: string) => {
+  // Memoize select skill handler
+  const handleSelectSkill = useCallback((skillId: string) => {
     setTargetSkill(skillId);
     navigate(`/skill/grounding?skillId=${skillId}`);
-  };
+  }, [navigate, setTargetSkill]);
 
-  if (loading) return <div className="p-8">Loading skills...</div>;
+  if (loading) {
+    return (
+      <div className="p-8 flex justify-center items-center min-h-[400px]">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading skills...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 flex justify-center items-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-500 text-lg mb-2">⚠️ Error</div>
+          <p className="text-red-500">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 p-8">
@@ -57,40 +111,29 @@ export function SkillSelectView() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full"
+          aria-label="Search skills"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((skill) => (
-          <Card key={skill.skill_id} className="cursor-pointer hover:shadow-lg transition-shadow">
-            <div className="p-4">
-              <h2 className="text-lg font-bold">{skill.name}</h2>
-            </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">ID</p>
-                <p className="font-mono text-sm">{skill.skill_id}</p>
-              </div>
-
-              <div>
-                <p className="text-sm text-muted-foreground">Complexity</p>
-                <Badge>{skill.complexity}/10</Badge>
-              </div>
-
-              <Button
-                className="w-full"
-                onClick={() => handleSelectSkill(skill.skill_id)}
-              >
-                Begin Grounding
-              </Button>
-            </div>
-          </Card>
+          <SkillCard key={skill.skill_id} skill={skill} onSelect={handleSelectSkill} />
         ))}
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center text-muted-foreground">
-          No skills found matching your search.
+        <div className="text-center text-muted-foreground py-12">
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className="text-lg font-semibold mb-2">No skills found</h3>
+          <p>No skills found matching your search.</p>
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="mt-4 text-primary hover:underline"
+            >
+              Clear search
+            </button>
+          )}
         </div>
       )}
     </div>

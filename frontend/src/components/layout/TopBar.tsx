@@ -20,14 +20,28 @@ export function TopBar() {
 
   return (
     <header className="border-b border-border bg-card px-8 py-4 flex items-center justify-between">
-      <div>
-        <h2 className="text-lg font-semibold">Welcome back, {user?.email}</h2>
+      {/* App Logo/Name */}
+      <div className="flex items-center space-x-3">
+        <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
+          <span className="text-primary-foreground font-bold text-sm">S</span>
+        </div>
+        <h1 className="text-xl font-bold text-primary">SkillOS</h1>
       </div>
 
-      <BrutalButton variant="mono" onClick={handleLogout}>
-        <LogOut className="mr-2 h-4 w-4" style={{ display: 'inline' }} />
-        Logout
-      </BrutalButton>
+      {/* User Info and Logout */}
+      <div className="flex items-center space-x-4">
+        <div className="text-right">
+          <p className="text-sm font-medium">{user?.email || 'User'}</p>
+          <p className="text-xs text-muted-foreground">Active Session</p>
+        </div>
+        
+        <div className="w-px h-8 bg-border"></div>
+        
+        <Button variant="mono" onClick={handleLogout}>
+          <LogOut className="h-4 w-4" />
+          <span className="ml-2 hidden sm:inline">Logout</span>
+        </Button>
+      </div>
     </header>
   );
 }
