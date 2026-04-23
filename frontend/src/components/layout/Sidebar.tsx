@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import React from "react";
+import { useNavigationStore } from "../../store/navigationStore";
 
 // --- SidebarItem Component ---
 interface SidebarItemProps {
@@ -15,7 +16,10 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, label, state, locked, too
   return (
     <li title={locked ? tooltip : undefined}>
       <NavLink
-        to={locked ? "#" : to}
+        to={to}
+        onClick={(event) => {
+          if (locked) event.preventDefault();
+        }}
         className={({ isActive }) =>
           "nav-item " +
           (isActive && !locked ? "nav-item--active " : "") +
@@ -32,20 +36,25 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, label, state, locked, too
 
 // --- Main Sidebar Component ---
 export function Sidebar() {
-    // Mock data based on user feedback/snippets
-    const completedLevels = 0; // "0 / 6"
-    const isProfileLocked = true; // "Locked"
-    const profileState = { isActive: false };
-    const isSkillsLocked = true; // "Locked"
-    const currentSkill = { skillName: "", skillId: "" };
-    const isRoadmapLocked = true; // "Locked"
-    const roadmapState = { currentPhase: "" };
-
     const { user, clearAuth } = useAuthStore();
+    const {
+      assessmentProgress,
+      profileState,
+      currentSkill,
+      roadmapState,
+      resetNavigation,
+    } = useNavigationStore();
+
+    const completedLevels = Object.values(assessmentProgress).filter((level) => level.status === "complete").length;
+    const isAssessmentComplete = completedLevels === 6;
+    const isProfileLocked = !isAssessmentComplete;
+    const isSkillsLocked = !profileState.isActive;
+    const isRoadmapLocked = !currentSkill.skillId || !roadmapState.isGenerated;
 
     const handleLogout = () => {
+        resetNavigation();
         clearAuth();
-        window.location.href = "/";
+        window.location.href = "/login";
     };
 
   return (
@@ -59,12 +68,12 @@ export function Sidebar() {
                 <SidebarItem
                     to="/assessment"
                     label="Assessment"
-                    state={`${completedLevels} / 6 complete`}
+                    state={isAssessmentComplete ? "Complete" : `${completedLevels} / 6 complete`}
                 />
                 <SidebarItem
                     to="/profile"
                     label="Profile"
-                    state={isProfileLocked ? "Locked" : profileState.isActive ? "Active" : "Inactive"}
+                    state={isProfileLocked ? "Locked" : "Active"}
                     locked={isProfileLocked}
                     tooltip="Complete all 6 assessments to unlock."
                 />
@@ -76,9 +85,19 @@ export function Sidebar() {
                     tooltip="Activate your profile to unlock."
                 />
                 <SidebarItem
-                    to={`/roadmap/${currentSkill.skillId || ''}`}
+                    to="/roadmap"
                     label="Roadmap"
-                    state={isRoadmapLocked ? "Locked" : roadmapState.currentPhase ? `${roadmapState.currentPhase} — active` : "Roadmap generated"}
+                    state={
+                      !currentSkill.skillId
+                        ? "Locked"
+                        : roadmapState.isGenerating
+                          ? "Generating..."
+                          : roadmapState.roadmapComplete
+                            ? "Complete"
+                            : roadmapState.currentPhase
+                              ? `${roadmapState.currentPhase} — active`
+                              : "Locked"
+                    }
                     locked={isRoadmapLocked}
                     tooltip="Select a skill and generate a roadmap to unlock."
                 />

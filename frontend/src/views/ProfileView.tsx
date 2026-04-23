@@ -1,120 +1,51 @@
-import { useEffect, useState } from 'react';
-import { useAuthStore } from '../store/authStore';
-import { useProfileStore } from '../store/profileStore';
-import { profileApi } from '../api/profileApi';
-import { BrutalCard as Card } from '../components/brutal/BrutalCard';
-import { Badge } from '../components/ui/Badge';
+import { useNavigate } from "react-router-dom";
+import { BrutalCard as Card } from "../components/brutal/BrutalCard";
+import { BrutalButton } from "../components/brutal/BrutalButton";
+import { useNavigationStore } from "../store/navigationStore";
 
 export function ProfileView() {
-  const user = useAuthStore((state) => state.user);
-  const profile = useProfileStore((state) => state.profile);
-  const parameters = useProfileStore((state) => state.parameters);
-  const setProfile = useProfileStore((state) => state.setProfile);
-  const setParameters = useProfileStore((state) => state.setParameters);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { profileState, assessmentProgress } = useNavigationStore();
+  const rows = [
+    ["Cognitive Capacity", profileState.dimensions.cognitive_capacity, "Working memory and problem-solving depth."],
+    ["Attention Stability", profileState.dimensions.attention_stability, "Consistency of focus over repeated work."],
+    ["Learning Tolerance", profileState.dimensions.learning_tolerance, "Ability to sustain challenge load."],
+    ["Motor Baseline", profileState.dimensions.motor_baseline, "Response control and motor steadiness."],
+    ["Stress Resilience", profileState.dimensions.stress_resilience, "Performance stability under pressure."],
+    ["Time Constraint", profileState.dimensions.time_constraint, "Comfort operating with tight timing."],
+  ] as const;
 
-  useEffect(() => {
-    if (!user?.id) return;
-    if (profile) return;
-
-    setLoading(true);
-    Promise.all([
-      profileApi.getProfile(user.id),
-      profileApi.getParameters(user.id),
-    ])
-      .then(([profileRes, paramsRes]) => {
-        setProfile(profileRes.data);
-        setParameters(paramsRes.data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [user?.id, profile, setProfile, setParameters]);
-
-  if (loading) return <div className="p-8">Loading profile...</div>;
-  if (!profile) return <div className="p-8">No profile data available</div>;
+  if (!profileState.isActive) return <main style={{ padding: "2rem" }}><p>Profile is locked. Complete all 6 assessments.</p></main>;
 
   return (
-    <div className="space-y-8 p-8">
-      <div>
-        <h1 className="text-3xl font-bold">Cognitive Profile</h1>
-        <p className="text-muted-foreground">Version {profile.version}</p>
+    <main style={{ padding: "2rem" }}>
+      <div style={{ marginBottom: "1rem" }}>
+        <h1 className="headline">Profile</h1>
       </div>
-
-      {/* Profile Dimensions */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <div className="p-4">
-            <h2 className="text-lg font-bold">Cognitive Capacity</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-bold">{(profile.cognitive_capacity * 100).toFixed(1)}%</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <h2 className="text-lg font-bold">Attention Stability</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-bold">{(profile.attention_stability * 100).toFixed(1)}%</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <h2 className="text-lg font-bold">Learning Tolerance</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-bold">{(profile.learning_tolerance * 100).toFixed(1)}%</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <h2 className="text-lg font-bold">Motor Baseline</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-bold">{(profile.motor_baseline * 100).toFixed(1)}%</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <h2 classNameVlog="text-lg font-bold">Stress Resilience</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-bold">{(profile.stress_resilience * 100).toFixed(1)}%</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <h2 className="text-lg font-bold">Time Constraint</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-bold">{(profile.time_constraint * 100).toFixed(1)}%</div>
-          </div>
-        </Card>
+      <div className="stats-grid">
+        {rows.map(([label, value, help]) => (
+          <Card key={label}>
+            <h2>{label}</h2>
+            <p className="stat-block__value">{value.toFixed(2)}</p>
+            <p className="small-copy">{help}</p>
+          </Card>
+        ))}
       </div>
-
-      {/* Learning Parameters */}
-      {parameters && (
-        <Card>
-          <div className="p-4">
-            <h2 className="text-lg font-bold">Learning Parameters ({Object.keys(parameters).length})</h2>
-          </div>
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {Object.entries(parameters).map(([key, value]) => (
-                <div key={key}>
-                  <p className="text-sm font-medium text-muted-foreground">{key}</p>
-                  <p className="text-lg font-bold">{typeof value === 'number' ? value.toFixed(2) : value}</p>
-                </div>
-              ))}
+      <Card style={{ marginTop: "1rem" }}>
+        <h2>Assessment History</h2>
+        <div className="recent-session-list">
+          {Object.entries(assessmentProgress).map(([level, state]) => (
+            <div key={level} className="recent-session-item">
+              <span>Level {level}</span>
+              <span>{state.status}</span>
+              <span>{state.completedAt ? new Date(state.completedAt).toLocaleString() : "Not completed"}</span>
+              <BrutalButton onClick={() => navigate("/assessment")} variant="secondary">
+                Retake Assessment
+              </BrutalButton>
             </div>
-          </div>
-        </Card>
-      )}
-    </div>
+          ))}
+        </div>
+      </Card>
+    </main>
   );
 }

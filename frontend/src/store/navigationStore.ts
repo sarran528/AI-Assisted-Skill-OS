@@ -1,31 +1,59 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// System flow states based on the spec
-export type SystemState = 
-  | 'assessment_incomplete'  // User hasn't completed all 6 assessment levels
-  | 'profile_inactive'       // Assessment complete but profile not built
-  | 'skill_selection'        // Profile active, need to select skill
-  | 'roadmap_generation'     // Skill selected, roadmap generating
-  | 'roadmap_active'          // Roadmap generated and active
-  | 'session_active'          // Currently in a session
-  | 'checkpoint_pending'      // Evidence submission required;
+export type SystemState =
+  | "assessment_incomplete"
+  | "profile_active"
+  | "roadmap_generation"
+  | "roadmap_active"
+  | "session_active";
+
+export type AssessmentLevelStatus =
+  | "not_started"
+  | "in_progress"
+  | "complete"
+  | "failed";
+
+export interface RoadmapCheckpoint {
+  id: string;
+  description: string;
+  threshold: string;
+  status: "pending" | "attempted" | "passed" | "failed" | "validating" | "locked";
+  validationReason?: string;
+  retriesRemaining: number;
+}
+
+export interface RoadmapTechnique {
+  id: string;
+  name: string;
+  status: "locked" | "active" | "complete";
+  checkpoints: RoadmapCheckpoint[];
+}
+
+export interface RoadmapCompetency {
+  name: string;
+  techniques: RoadmapTechnique[];
+}
+
+export interface RoadmapPhase {
+  id: string;
+  name: string;
+  status: "locked" | "active" | "complete";
+  competencies: RoadmapCompetency[];
+}
 
 export interface NavigationState {
-  // System state tracking
   systemState: SystemState;
-  
-  // Assessment progress (6 levels)
+
   assessmentProgress: {
     [level: number]: {
-      status: 'locked' | 'incomplete' | 'in_progress' | 'complete';
-      score?: number;
-      livesRemaining?: number;
+      status: AssessmentLevelStatus;
+      attempts: number;
+      completedAt?: string;
       questionsAnswered?: number;
     };
   };
-  
-  // Profile state (6 dimensions)
+
   profileState: {
     isActive: boolean;
     dimensions: {
@@ -37,23 +65,22 @@ export interface NavigationState {
       time_constraint: number;
     };
   };
-  
-  // Current skill and roadmap
+
   currentSkill: {
     skillId: string | null;
     skillName: string | null;
     domain: string | null;
   };
-  
+
   roadmapState: {
     isGenerated: boolean;
+    isGenerating: boolean;
     currentPhase: string | null;
     currentTechnique: string | null;
-    phasesCompleted: string[];
-    checkpointsCompleted: string[];
+    phases: RoadmapPhase[];
+    roadmapComplete: boolean;
   };
-  
-  // Session state
+
   sessionState: {
     isActive: boolean;
     sessionId: string | null;
@@ -62,29 +89,37 @@ export interface NavigationState {
     retryCount: number;
     maxRetries: number;
   };
-  
-  // Actions
+
   setSystemState: (state: SystemState) => void;
-  updateAssessmentLevel: (level: number, status: any) => void;
-  setProfileState: (profile: any) => void;
-  setCurrentSkill: (skill: any) => void;
-  setRoadmapState: (roadmap: any) => void;
-  setSessionState: (session: any) => void;
+  updateAssessmentLevel: (level: number, update: Partial<NavigationState["assessmentProgress"][number]>) => void;
+  setProfileState: (profile: Partial<NavigationState["profileState"]>) => void;
+  setCurrentSkill: (skill: Partial<NavigationState["currentSkill"]>) => void;
+  setRoadmapState: (roadmap: Partial<NavigationState["roadmapState"]>) => void;
+  setRoadmapPhases: (phases: RoadmapPhase[]) => void;
+  updateCheckpointStatus: (
+    phaseId: string,
+    techniqueId: string,
+    checkpointId: string,
+    status: RoadmapCheckpoint["status"],
+    validationReason?: string
+  ) => void;
+  promoteNextPhaseIfNeeded: () => void;
+  setSessionState: (session: Partial<NavigationState["sessionState"]>) => void;
   resetNavigation: () => void;
 }
 
 const initialState = {
-  systemState: 'assessment_incomplete' as SystemState,
-  
+  systemState: "assessment_incomplete" as SystemState,
+
   assessmentProgress: {
-    1: { status: 'incomplete' as const },
-    2: { status: 'locked' as const },
-    3: { status: 'locked' as const },
-    4: { status: 'locked' as const },
-    5: { status: 'locked' as const },
-    6: { status: 'locked' as const },
+    1: { status: "not_started" as const, attempts: 0 },
+    2: { status: "not_started" as const, attempts: 0 },
+    3: { status: "not_started" as const, attempts: 0 },
+    4: { status: "not_started" as const, attempts: 0 },
+    5: { status: "not_started" as const, attempts: 0 },
+    6: { status: "not_started" as const, attempts: 0 },
   },
-  
+
   profileState: {
     isActive: false,
     dimensions: {
@@ -96,21 +131,22 @@ const initialState = {
       time_constraint: 0,
     },
   },
-  
+
   currentSkill: {
     skillId: null,
     skillName: null,
     domain: null,
   },
-  
+
   roadmapState: {
     isGenerated: false,
+    isGenerating: false,
     currentPhase: null,
     currentTechnique: null,
-    phasesCompleted: [],
-    checkpointsCompleted: [],
+    phases: [],
+    roadmapComplete: false,
   },
-  
+
   sessionState: {
     isActive: false,
     sessionId: null,
@@ -123,11 +159,11 @@ const initialState = {
 
 export const useNavigationStore = create<NavigationState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
-      
+
       setSystemState: (systemState) => set({ systemState }),
-      
+
       updateAssessmentLevel: (level, update) => set((state) => ({
         assessmentProgress: {
           ...state.assessmentProgress,
@@ -137,35 +173,115 @@ export const useNavigationStore = create<NavigationState>()(
           },
         },
       })),
-      
+
       setProfileState: (profile) => set((state) => ({
         profileState: {
           ...state.profileState,
           ...profile,
         },
       })),
-      
+
       setCurrentSkill: (skill) => set((state) => ({
         currentSkill: {
           ...state.currentSkill,
           ...skill,
         },
       })),
-      
+
       setRoadmapState: (roadmap) => set((state) => ({
         roadmapState: {
           ...state.roadmapState,
           ...roadmap,
         },
       })),
-      
+
+      setRoadmapPhases: (phases) =>
+        set((state) => ({
+          roadmapState: {
+            ...state.roadmapState,
+            phases,
+          },
+        })),
+
+      updateCheckpointStatus: (phaseId, techniqueId, checkpointId, status, validationReason) =>
+        set((state) => ({
+          roadmapState: {
+            ...state.roadmapState,
+            phases: state.roadmapState.phases.map((phase) =>
+              phase.id !== phaseId
+                ? phase
+                : {
+                    ...phase,
+                    competencies: phase.competencies.map((competency) => ({
+                      ...competency,
+                      techniques: competency.techniques.map((technique) =>
+                        technique.id !== techniqueId
+                          ? technique
+                          : {
+                              ...technique,
+                              checkpoints: technique.checkpoints.map((checkpoint) =>
+                                checkpoint.id !== checkpointId
+                                  ? checkpoint
+                                  : {
+                                      ...checkpoint,
+                                      status,
+                                      validationReason,
+                                      retriesRemaining:
+                                        status === "failed"
+                                          ? Math.max(0, checkpoint.retriesRemaining - 1)
+                                          : checkpoint.retriesRemaining,
+                                    }
+                              ),
+                            }
+                      ),
+                    })),
+                  }
+            ),
+          },
+        })),
+
+      promoteNextPhaseIfNeeded: () =>
+        set((state) => {
+          const updatedPhases = [...state.roadmapState.phases];
+          const activeIndex = updatedPhases.findIndex((phase) => phase.status === "active");
+
+          if (activeIndex < 0) {
+            return state;
+          }
+
+          const activePhase = updatedPhases[activeIndex];
+          const hasPending = activePhase.competencies.some((c) =>
+            c.techniques.some((t) => t.checkpoints.some((cp) => cp.status !== "passed"))
+          );
+
+          if (hasPending) {
+            return state;
+          }
+
+          updatedPhases[activeIndex] = { ...activePhase, status: "complete" };
+          const nextIndex = activeIndex + 1;
+          if (updatedPhases[nextIndex]) {
+            updatedPhases[nextIndex] = { ...updatedPhases[nextIndex], status: "active" };
+          }
+
+          const nextActive = updatedPhases.find((phase) => phase.status === "active");
+          return {
+            roadmapState: {
+              ...state.roadmapState,
+              phases: updatedPhases,
+              currentPhase: nextActive?.name ?? null,
+              roadmapComplete: !updatedPhases.some((phase) => phase.status !== "complete"),
+            },
+          };
+        }),
+
       setSessionState: (session) => set((state) => ({
         sessionState: {
           ...state.sessionState,
           ...session,
         },
       })),
-      
+
       resetNavigation: () => set(initialState),
     }),
     {
