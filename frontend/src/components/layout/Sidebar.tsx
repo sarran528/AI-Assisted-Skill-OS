@@ -1,50 +1,101 @@
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
+import React from "react";
 
+// --- SidebarItem Component ---
+interface SidebarItemProps {
+  to: string;
+  label: string;
+  state?: string;
+  locked?: boolean;
+  tooltip?: string;
+}
+
+const SidebarItem: React.FC<SidebarItemProps> = ({ to, label, state, locked, tooltip }) => {
+  return (
+    <li title={locked ? tooltip : undefined}>
+      <NavLink
+        to={locked ? "#" : to}
+        className={({ isActive }) =>
+          "nav-item " +
+          (isActive && !locked ? "nav-item--active " : "") +
+          (locked ? "nav-item--locked" : "")
+        }
+      >
+        <span className="nav-item__label">{label}</span>
+        {state && <span className="nav-item__state">{state}</span>}
+      </NavLink>
+    </li>
+  );
+};
+
+
+// --- Main Sidebar Component ---
 export function Sidebar() {
-  const { user, clearAuth } = useAuthStore();
+    // Mock data based on user feedback/snippets
+    const completedLevels = 0; // "0 / 6"
+    const isProfileLocked = true; // "Locked"
+    const profileState = { isActive: false };
+    const isSkillsLocked = true; // "Locked"
+    const currentSkill = { skillName: "", skillId: "" };
+    const isRoadmapLocked = true; // "Locked"
+    const roadmapState = { currentPhase: "" };
 
-  const handleLogout = () => {
-    clearAuth();
-    window.location.href = "/";
-  };
+    const { user, clearAuth } = useAuthStore();
+
+    const handleLogout = () => {
+        clearAuth();
+        window.location.href = "/";
+    };
 
   return (
     <aside className="sidebar">
-      <h2 className="sidebar__title">SkillOS</h2>
-      <nav>
-        <div className="nav-group">
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-            Dashboard
-          </NavLink>
-          <NavLink to="/assessment" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-            Assessment
-          </NavLink>
+        <div className="sidebar__header">
+            <h2 className="sidebar__title">SkillOS</h2>
         </div>
-        <div className="nav-group">
-          <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-            Profile
-          </NavLink>
-          <NavLink to="/skill/select" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-            Skills
-          </NavLink>
-          <NavLink to="/roadmap" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-            Roadmap
-          </NavLink>
+        <nav className="sidebar__nav">
+            <ul>
+                <SidebarItem to="/dashboard" label="Dashboard" />
+                <SidebarItem
+                    to="/assessment"
+                    label="Assessment"
+                    state={`${completedLevels} / 6 complete`}
+                />
+                <SidebarItem
+                    to="/profile"
+                    label="Profile"
+                    state={isProfileLocked ? "Locked" : profileState.isActive ? "Active" : "Inactive"}
+                    locked={isProfileLocked}
+                    tooltip="Complete all 6 assessments to unlock."
+                />
+                <SidebarItem
+                    to="/skill/select"
+                    label="Skills"
+                    state={isSkillsLocked ? "Locked" : currentSkill.skillName || "No skill selected"}
+                    locked={isSkillsLocked}
+                    tooltip="Activate your profile to unlock."
+                />
+                <SidebarItem
+                    to={`/roadmap/${currentSkill.skillId || ''}`}
+                    label="Roadmap"
+                    state={isRoadmapLocked ? "Locked" : roadmapState.currentPhase ? `${roadmapState.currentPhase} — active` : "Roadmap generated"}
+                    locked={isRoadmapLocked}
+                    tooltip="Select a skill and generate a roadmap to unlock."
+                />
+                <SidebarItem
+                    to="/resources"
+                    label="Resources"
+                    state={roadmapState.currentPhase ? `Showing ${roadmapState.currentPhase} content` : "No active phase"}
+                />
+                <SidebarItem to="/help" label="Help" />
+            </ul>
+        </nav>
+        <div className="sidebar-footer">
+            <p className="sidebar-footer__email">{user?.email}</p>
+            <button onClick={handleLogout} className="brutal-button brutal-button--secondary">
+            Logout
+            </button>
         </div>
-        <NavLink to="/resources" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Resources
-        </NavLink>
-        <NavLink to="/help" className={({ isActive }) => `nav-item ${isActive ? "nav-item--active" : ""}`}>
-          Help
-        </NavLink>
-      </nav>
-      <div className="sidebar-footer">
-        <p>{user?.email}</p>
-        <button onClick={handleLogout} className="brutal-button brutal-button--secondary">
-          Logout
-        </button>
-      </div>
     </aside>
   );
 }
