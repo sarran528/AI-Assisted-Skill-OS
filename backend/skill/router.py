@@ -5,7 +5,7 @@ API routes for skill template management.
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import AuthContext, get_current_user
 from backend.shared.db.session import get_db_session
 from backend.shared.errors import BusinessError, SystemError
 from backend.skill.schemas import (
@@ -34,7 +34,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[SkillListResponse])
 async def list_skills(
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """List all active skill templates."""
@@ -61,7 +61,7 @@ async def list_skills(
 
 @router.get("/list", response_model=list[SkillListResponse])
 async def list_skills_alias(
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     return await list_skills(current_user=current_user, db_session=db_session)
@@ -70,7 +70,7 @@ async def list_skills_alias(
 @router.get("/{skill_id}", response_model=SkillTemplateResponse)
 async def get_skill(
     skill_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """Get a specific skill template by skill_id."""
@@ -103,12 +103,12 @@ async def get_skill(
 @router.post("", response_model=SkillTemplateResponse, status_code=status.HTTP_201_CREATED)
 async def create_skill(
     payload: SkillTemplateCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """Create a new skill template (admin only)."""
     # Check admin status
-    if current_user.get("status") != "admin":
+    if current_user.user.status != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can create skill templates",
@@ -144,11 +144,11 @@ async def create_skill(
 async def update_skill(
     skill_id: str,
     payload: SkillTemplateUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """Update an existing skill template (admin only)."""
-    if current_user.get("status") != "admin":
+    if current_user.user.status != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can update skill templates",
@@ -184,7 +184,7 @@ async def update_skill(
 async def submit_grounding(
     payload: GroundingProbeResponses | GroundingProbeSubmit,
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """Submit grounding probe responses for a skill."""
@@ -192,7 +192,7 @@ async def submit_grounding(
         # Fetch user's latest cognitive profile
         result = await db_session.execute(
             select(CognitiveProfile)
-            .where(CognitiveProfile.user_id == current_user["user"].id)
+            .where(CognitiveProfile.user_id == current_user.user.id)
             .order_by(CognitiveProfile.created_at.desc())
         )
         profile_record = result.scalar_one_or_none()
@@ -222,7 +222,7 @@ async def submit_grounding(
 
             repo = GroundingRepository(db_session)
             await repo.create_baseline(
-                user_id=current_user["user"].id,
+                user_id=current_user.user.id,
                 skill_id=payload.skill_id,
                 exposure_score=payload.recognition_score,
                 declarative_score=payload.declarative_score,
@@ -249,7 +249,7 @@ async def submit_grounding(
         # Submit grounding with full probe responses
         service = GroundingService(db_session)
         response = await service.submit_grounding(
-            user_id=current_user["user"].id,
+            user_id=current_user.user.id,
             skill_id=payload.skill_id,
             responses=payload,
             profile=profile,
@@ -284,11 +284,11 @@ async def submit_grounding(
 @router.get("/{skill_id}/baseline", response_model=BaselineStateResponse)
 async def get_baseline(
     skill_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> BaselineStateResponse:
     repo = GroundingRepository(db_session)
-    baseline = await repo.get_latest_baseline(current_user["user"].id, skill_id)
+    baseline = await repo.get_latest_baseline(current_user.user.id, skill_id)
     if baseline is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="baseline_not_found")
 
@@ -310,7 +310,7 @@ async def get_baseline(
 async def generate_skill_research(
     skill_id: str,
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """Generate skill intelligence research object.
@@ -322,7 +322,7 @@ async def generate_skill_research(
         # Fetch user's latest cognitive profile
         result = await db_session.execute(
             select(CognitiveProfile)
-            .where(CognitiveProfile.user_id == current_user["user"].id)
+            .where(CognitiveProfile.user_id == current_user.user.id)
             .order_by(CognitiveProfile.created_at.desc())
         )
         profile_record = result.scalar_one_or_none()
@@ -348,7 +348,7 @@ async def generate_skill_research(
         ip_address = request.client.host if request.client else "127.0.0.1"
         
         research_object = await service.generate_skill_research(
-            user_id=current_user["user"].id,
+            user_id=current_user.user.id,
             skill_id=skill_id,
             profile=profile,
             ip_address=ip_address,

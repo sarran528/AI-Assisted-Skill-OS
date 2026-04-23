@@ -68,7 +68,7 @@ jobs:
         run: pytest --cov=backend/validation --cov-fail-under=90
 
       - name: Build Docker image
-        run: docker build -f backend/Dockerfile -t skillos:${{ github.sha }} backend
+        run: docker build -f Dockerfile -t skillos:${{ github.sha }} .
 
   deploy-staging:
     if: github.ref == 'refs/heads/main'
@@ -90,7 +90,7 @@ jobs:
       - name: Build and push image
         run: |
           IMAGE=ghcr.io/sarran/skillos
-          docker build -f backend/Dockerfile -t $IMAGE:${{ github.sha }} backend
+          docker build -f Dockerfile -t $IMAGE:${{ github.sha }} .
           docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
           docker push $IMAGE:${{ github.sha }}
           docker push $IMAGE:latest

@@ -21,6 +21,9 @@ export function GroundingView() {
   const [loading, setLoading] = useState(false);
 
   const handleNext = async () => {
+    if (!skillId) {
+      return;
+    }
     if (step === 'recognition') {
       setStep('declarative');
     } else if (step === 'declarative') {
@@ -30,13 +33,13 @@ export function GroundingView() {
       setLoading(true);
       try {
         const res = await skillApi.submitBaseline({
-          skill_id: skillId!,
+          skill_id: skillId,
           recognition_score: scores.recognition_score,
           declarative_score: scores.declarative_score,
           confidence_bias: scores.confidence_bias,
         });
         setBaseline(res.data);
-        navigate('/roadmap/generate');
+        navigate('/roadmap');
       } catch (error) {
         console.error('Failed to submit baseline:', error);
       } finally {
@@ -112,7 +115,7 @@ export function GroundingView() {
             <Button
               className="flex-1"
               onClick={handleNext}
-              disabled={loading}
+              disabled={loading || !skillId}
             >
               {step === 'confidence' ? 'Complete Grounding' : 'Next'}
             </Button>

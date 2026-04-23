@@ -27,7 +27,7 @@ export function CreateSkillCard() {
         <BrutalButton
           data-testid="create-skill-action"
           variant="mono"
-          onClick={() => navigate("/skills/new")}
+          onClick={() => navigate("/skill/select")}
           className="create-skill-card__button"
         >
           Create Skill

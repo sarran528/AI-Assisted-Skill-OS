@@ -20,10 +20,12 @@ class SessionStartResponse(APIModel):
 
 
 class SessionMetricsRequest(APIModel):
+    session_id: UUID
     metrics: dict
 
 
 class SessionCompleteRequest(APIModel):
+    session_id: UUID
     completed_steps: list[str]
 
 

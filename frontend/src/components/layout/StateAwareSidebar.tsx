@@ -189,11 +189,11 @@ export function StateAwareSidebar() {
     },
     {
       id: 'help',
-      path: '/doubt',
+      path: '/help',
       label: 'Help',
       icon: HelpCircle,
       getState: () => {
-        if (location.pathname === '/doubt') return 'active';
+        if (location.pathname === '/help') return 'active';
         return 'incomplete'; // Always accessible
       },
       getTooltip: () => 'Get help with current context',

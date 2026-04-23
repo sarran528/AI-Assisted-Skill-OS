@@ -12,6 +12,7 @@ from tenacity import (
 import anthropic
 
 from backend.shared.config import settings
+from backend.shared.errors import SystemError
 from backend.shared.llm.client import get_anthropic_client
 
 logger = logging.getLogger(__name__)

@@ -16,7 +16,11 @@ export async function startSession(payload: {
 }
 
 export async function submitSessionMetrics(payload: SessionMetricsPayload): Promise<unknown> {
-  const response = await axiosClient.post("/session/metrics", payload);
+  const { session_id, ...metrics } = payload;
+  const response = await axiosClient.post("/session/metrics", {
+    session_id,
+    metrics,
+  });
   return response.data;
 }
 

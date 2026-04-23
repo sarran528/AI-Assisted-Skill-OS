@@ -1,9 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import AuthContext, get_current_user
+from backend.shared.db.models import Session
 from backend.shared.rate_limit import limiter
 from backend.shared.db.session import get_db_session
 from backend.shared.db.repositories.tip_repository import TipRepository
@@ -28,7 +30,7 @@ async def get_resources_route(
     technique_id: str | None = Query(default=None),
     user_query: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
 ) -> ResourceResponseModel:
     query = user_query or technique_id
     response = await get_resources(
@@ -52,12 +54,12 @@ async def ask_doubt_route(
     request: Request,
     payload: DoubtAskRequest,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
 ) -> DoubtResponseModel:
     del request
     response = await answer_doubt(
         db=db,
-        user_id=current_user["user"].id,
+        user_id=current_user.user.id,
         session_id=payload.session_id,
         user_question=payload.user_query,
         current_user=current_user,
@@ -72,9 +74,14 @@ async def ask_doubt_route(
 async def get_tip_route(
     session_id: UUID,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
 ) -> TipResponseModel | TipPendingResponse:
-    del current_user
+    session = await db.scalar(select(Session).where(Session.id == session_id))
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    if str(session.user_id) != str(current_user.user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
+
     repo = TipRepository(db)
     tip = await repo.get_latest_for_session(session_id)
     if tip is None:

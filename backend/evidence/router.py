@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import AuthContext, get_current_user
 from backend.evidence.schemas import EvidenceListItem, EvidenceListResponse, EvidenceUploadResponse
 from backend.evidence.service import list_evidence_for_session, upload_evidence
 from backend.shared.db.session import get_db_session
@@ -38,7 +38,7 @@ async def upload_evidence_route(
     checkpoint_id: str = Form(...),
     evidence_type: str = Form(...),
     db_session: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
 ) -> EvidenceUploadResponse:
     validate_evidence_file(file)
     record = await upload_evidence(
@@ -46,7 +46,7 @@ async def upload_evidence_route(
         file,
         session_id,
         checkpoint_id,
-        current_user["user"].id,
+        current_user.user.id,
         evidence_type,
     )
     return EvidenceUploadResponse(
@@ -63,8 +63,9 @@ async def upload_evidence_route(
 async def list_evidence_route(
     session_id: UUID,
     db_session: AsyncSession = Depends(get_db_session),
+    current_user: AuthContext = Depends(get_current_user),
 ) -> EvidenceListResponse:
-    records = await list_evidence_for_session(db_session, session_id)
+    records = await list_evidence_for_session(db_session, session_id, current_user.user.id)
     return EvidenceListResponse(
         items=[
             EvidenceListItem(

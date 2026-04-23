@@ -67,6 +67,16 @@ export interface SessionStartResponse {
   status: string;
 }
 
+export interface Session {
+  session_id: string;
+  status: string;
+  phase: string;
+  technique_id: string;
+  attempt_number: number;
+  started_at?: string;
+  ended_at?: string;
+}
+
 export interface SessionListItem {
   session_id: string;
   status: string;
@@ -77,9 +87,10 @@ export interface SessionListItem {
 
 export interface SessionCompleteResponse {
   session_id: string;
+  status?: string;
   passed: boolean;
   tip_pending?: boolean;
-  completed_steps: string[];
+  tip_poll_url?: string;
   failure_reason?: string;
 }
 
@@ -120,7 +131,10 @@ export interface SupportResourceItem {
 }
 
 export interface SupportResourcesResponse {
+  skill_id: string;
+  phase: string;
   resources: SupportResourceItem[];
+  query_used: string;
 }
 
 export interface TipResponse {

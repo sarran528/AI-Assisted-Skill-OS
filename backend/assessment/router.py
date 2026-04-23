@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.assessment.schemas import AssessmentResponse, AssessmentSubmission, ProfileResponse, RawMetrics, RawTimeConstraint
 from backend.assessment.service import process_assessment_levels
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import AuthContext, get_current_user
 from backend.shared.db.models import AssessmentSession, CognitiveProfile
 from backend.shared.db.session import get_db_session
 from backend.shared.rate_limit import limiter
@@ -29,7 +29,7 @@ router = APIRouter(tags=["assessment"])
 @limiter.limit("10/minute")
 async def start_assessment(
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Initialize an assessment session for the authenticated user."""
@@ -37,7 +37,7 @@ async def start_assessment(
     db_session.add(
         AssessmentSession(
             session_id=session_id,
-            user_id=current_user["user"].id,
+            user_id=current_user.user.id,
             status="in_progress",
             submissions={},
             completed_levels=[],
@@ -48,7 +48,7 @@ async def start_assessment(
         "session_id": str(session_id),
         "levels": [1, 2, 3, 4, 5, 6],
         "status": "started",
-        "user_id": str(current_user["user"].id),
+        "user_id": str(current_user.user.id),
     }
 
 
@@ -75,7 +75,7 @@ def _map_level_id(level_id: str | int) -> int:
 async def submit_assessment(
     request: Request,
     payload: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> AssessmentResponse:
     """Submit assessment data and compute cognitive profile.
@@ -144,7 +144,7 @@ async def submit_assessment(
     else:
         submission = AssessmentSubmission.model_validate(payload)
 
-    user_id = current_user["user"].id
+    user_id = current_user.user.id
     session_id = submission.session_id
     session = None
 
@@ -190,7 +190,7 @@ async def submit_assessment(
 async def complete_assessment(
     request: Request,
     payload: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Finalize an assessment session and compute the profile."""
@@ -203,7 +203,7 @@ async def complete_assessment(
     except (TypeError, ValueError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_session_id")
 
-    user_id = current_user["user"].id
+    user_id = current_user.user.id
     session = await db_session.scalar(
         select(AssessmentSession)
         .where(AssessmentSession.session_id == session_uuid)
@@ -247,11 +247,11 @@ async def complete_assessment(
 @limiter.limit("30/minute")
 async def assessment_status(
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     _ = request
-    user_id = current_user["user"].id
+    user_id = current_user.user.id
     session = await db_session.scalar(
         select(AssessmentSession)
         .where(AssessmentSession.user_id == user_id)

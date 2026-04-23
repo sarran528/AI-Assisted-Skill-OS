@@ -40,8 +40,10 @@ async def start_session(
     return model
 
 
-async def submit_metrics(db: AsyncSession, session_id: UUID, metrics_payload: dict) -> Session:
-    session = await db.scalar(select(Session).where(Session.id == session_id))
+async def submit_metrics(db: AsyncSession, session_id: UUID, user_id: UUID, metrics_payload: dict) -> Session:
+    session = await db.scalar(
+        select(Session).where(Session.id == session_id).where(Session.user_id == user_id)
+    )
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -56,9 +58,12 @@ async def submit_metrics(db: AsyncSession, session_id: UUID, metrics_payload: di
 async def complete_session(
     db: AsyncSession,
     session_id: UUID,
+    user_id: UUID,
     completed_steps: list[str],
 ) -> SessionCompleteResponse:
-    session = await db.scalar(select(Session).where(Session.id == session_id))
+    session = await db.scalar(
+        select(Session).where(Session.id == session_id).where(Session.user_id == user_id)
+    )
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -133,8 +138,10 @@ async def complete_session(
     )
 
 
-async def get_session_status(db: AsyncSession, session_id: UUID) -> Session | None:
-    return await db.scalar(select(Session).where(Session.id == session_id))
+async def get_session_status(db: AsyncSession, session_id: UUID, user_id: UUID) -> Session | None:
+    return await db.scalar(
+        select(Session).where(Session.id == session_id).where(Session.user_id == user_id)
+    )
 
 
 async def list_recent_sessions(db: AsyncSession, user_id: UUID, limit: int = 5) -> list[Session]:

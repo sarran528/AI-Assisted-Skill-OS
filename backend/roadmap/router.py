@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import AuthContext, get_current_user
 from backend.roadmap.generator import verify_roadmap_integrity
 from backend.roadmap.schemas import (
     GeneratedRoadmap,
@@ -43,19 +43,23 @@ class FlowRoadmapResponse(APIModel):
 async def generate_roadmap(
     request: Request,
     payload: RoadmapGenerateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: AuthContext = Depends(get_current_user),
 ) -> RoadmapGenerateResponse:
     from backend.shared.queue.tasks import generate_roadmap_task
     _ = request
-    task = generate_roadmap_task.delay(str(current_user["user"].id), payload.skill_id)
+    task = generate_roadmap_task.delay(str(current_user.user.id), payload.skill_id)
     return RoadmapGenerateResponse(job_id=task.id, status="queued")
 
 
 @router.get("/{user_id}", response_model=FlowRoadmapResponse)
 async def get_active_roadmap(
     user_id: UUID,
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> FlowRoadmapResponse:
+    if str(user_id) != str(current_user.user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
+
     roadmap = await RoadmapRepository.get_active_for_user(db_session, user_id)
     if roadmap is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active roadmap found")
@@ -87,8 +91,12 @@ async def get_active_roadmap(
 async def get_roadmap_status(
     user_id: UUID,
     job_id: str | None = None,
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> dict:
+    if str(user_id) != str(current_user.user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
+
     roadmap = await RoadmapRepository.get_active_for_user(db_session, user_id)
     if roadmap is not None:
         return {"status": "completed", "job_id": job_id}
@@ -107,8 +115,15 @@ async def get_roadmap_status(
 @router.patch("/{roadmap_id}/abandon")
 async def abandon_roadmap(
     roadmap_id: UUID,
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> dict:
+    roadmap = await RoadmapRepository.get_by_id(db_session, roadmap_id)
+    if roadmap is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Roadmap not found")
+    if str(roadmap.user_id) != str(current_user.user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
+
     await RoadmapRepository.update_status(db_session, roadmap_id, "abandoned")
     return {"status": "abandoned"}
 
@@ -116,11 +131,14 @@ async def abandon_roadmap(
 @router.get("/{roadmap_id}/verify", response_model=RoadmapVerifyResponse)
 async def verify_roadmap(
     roadmap_id: UUID,
+    current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> RoadmapVerifyResponse:
     model = await RoadmapRepository.get_by_id(db_session, roadmap_id)
     if model is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Roadmap not found")
+    if str(model.user_id) != str(current_user.user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
     parsed = GeneratedRoadmap.model_validate(model.structure)
     is_valid = verify_roadmap_integrity(parsed)
