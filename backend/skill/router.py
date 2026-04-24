@@ -13,10 +13,11 @@ from backend.skill.schemas import (
     SkillTemplateUpdate,
     SkillTemplateResponse,
     SkillListResponse,
+    SkillTemplateBuildRequest,
+    SkillTemplateBuildResponse,
 )
 from backend.skill.grounding_schemas import (
     GroundingProbeResponses,
-    BaselineSkillStateResponse,
     GroundingProbeSubmit,
     BaselineStateResponse,
 )
@@ -137,6 +138,43 @@ async def create_skill(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create skill: {str(e)}",
+        )
+
+
+@router.post("/generate-template", response_model=SkillTemplateBuildResponse, status_code=status.HTTP_201_CREATED)
+async def generate_skill_template(
+    payload: SkillTemplateBuildRequest,
+    current_user: AuthContext = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    """Generate and persist a template using structured retrieval pipeline (admin only)."""
+    if current_user.user.status != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can generate skill templates",
+        )
+
+    try:
+        service = SkillTemplateService(db_session)
+        template, generated_version, created = await service.build_template_from_skill_name(
+            skill_name=payload.skill_name,
+            domain=payload.domain,
+            complexity_score=payload.complexity_score,
+        )
+        return SkillTemplateBuildResponse(
+            skill_id=template.skill_id,
+            version=generated_version,
+            created=created,
+        )
+    except BusinessError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.args[0],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate skill template: {str(e)}",
         )
 
 
@@ -367,7 +405,7 @@ async def generate_skill_research(
             status_code=status_code,
             detail=e.args[0],
         )
-    except SystemError as e:
+    except SystemError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="LLM service failed. Please try again later.",

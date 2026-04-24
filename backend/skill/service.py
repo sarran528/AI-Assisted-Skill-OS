@@ -12,6 +12,7 @@ from backend.shared.errors import BusinessError
 from backend.skill.template_schema import validate_template_structure
 from backend.skill.schemas import SkillTemplateCreate, SkillTemplateUpdate
 from backend.shared.db.models import SkillTemplate
+from backend.skill.template_pipeline import SkillTemplatePipeline, to_legacy_structure, to_skill_id
 
 
 class SkillTemplateService:
@@ -107,3 +108,55 @@ class SkillTemplateService:
     async def list_skills(self) -> list[SkillTemplate]:
         """List all active skill templates."""
         return await self.repo.list_active_skills()
+
+    async def build_template_from_skill_name(
+        self,
+        *,
+        skill_name: str,
+        domain: str = "other",
+        complexity_score: float = 0.5,
+    ) -> tuple[SkillTemplate, str, bool]:
+        """
+        Build and persist a strict skill template from controlled retrieval pipeline.
+
+        Returns:
+            (template, generated_version, created_new_record)
+        """
+        skill_id = to_skill_id(skill_name)
+        existing = await self.repo.get_active_template(skill_id)
+        if existing:
+            return existing, f"v{existing.version}", False
+
+        pipeline = SkillTemplatePipeline()
+        try:
+            result = await pipeline.build_with_fallback(skill_name)
+        finally:
+            await pipeline.close()
+
+        if result is None:
+            raise BusinessError(
+                code="template_generation_failed",
+                message="Failed to generate a valid SkillTemplate from external sources",
+            )
+
+        structure = to_legacy_structure(result.template)
+
+        try:
+            validate_template_structure(structure)
+        except ValidationError as e:
+            raise BusinessError(
+                code="invalid_template_structure",
+                message=f"Generated structure failed validation: {e.message}",
+                context={"field": e.json_path},
+            )
+
+        template = await self.repo.create_template(
+            {
+                "skill_id": skill_id,
+                "name": skill_name,
+                "domain": domain,
+                "complexity_score": complexity_score,
+                "structure": structure,
+            }
+        )
+        return template, result.version, True

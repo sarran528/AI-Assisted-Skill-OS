@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     jwt_audience: str = "skillos-api"
     openai_api_key: str = ""
     anthropic_api_key: str = ""
+    serper_api_key: str = ""
+    serpapi_api_key: str = ""
+    search_provider: str = "serper"
+    groq_api_key: str = ""
+    together_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    together_model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
     llm_provider: str = "openai"
     llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 1000
@@ -35,6 +42,9 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
     embedding_batch_size: int = 100
+    local_embedding_model: str = "all-MiniLM-L6-v2"
+    faiss_index_path: str = "backend/data/faiss/skill_templates.index"
+    faiss_metadata_path: str = "backend/data/faiss/skill_templates.meta.json"
     nhost_storage_endpoint: str = ""
     nhost_storage_bucket: str = ""
     nhost_storage_access_key: str = ""

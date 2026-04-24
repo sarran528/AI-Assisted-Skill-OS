@@ -82,6 +82,61 @@ def _template() -> SkillTemplate:
     )
 
 
+def _template_with_structured() -> SkillTemplate:
+    return SkillTemplate(
+        id=uuid4(),
+        skill_id="drawing",
+        version=1,
+        name="Drawing",
+        domain="drawing",
+        complexity_score=0.5,
+        structure={
+            "phases": {
+                "phase_1": {
+                    "competencies": ["legacy"],
+                    "techniques": ["legacy-technique"],
+                    "checkpoints": ["legacy checkpoint"],
+                }
+            },
+            "structured_template": {
+                "skill_id": "drawing",
+                "phases": {
+                    "phase_1": {
+                        "competencies": ["line control", "shape accuracy"],
+                        "techniques": [
+                            {
+                                "id": "tech_a",
+                                "name": "Contour drill",
+                                "protocol_steps": ["observe", "draw", "review"],
+                                "checkpoints": [
+                                    {
+                                        "id": "cp_percent",
+                                        "competency_target": "line control",
+                                        "target_metric": "accuracy %",
+                                        "threshold": ">= 85%",
+                                        "validation_method": "numeric",
+                                        "failure_condition": "< 85%",
+                                    },
+                                    {
+                                        "id": "cp_artifact",
+                                        "competency_target": "shape accuracy",
+                                        "target_metric": "artifact quality",
+                                        "threshold": ">= 1 accepted artifact",
+                                        "validation_method": "artifact",
+                                        "failure_condition": "no accepted artifact",
+                                    },
+                                ],
+                            }
+                        ],
+                    }
+                },
+            },
+        },
+        is_active=True,
+        created_at=datetime.utcnow(),
+    )
+
+
 def _research(risk_level: str = "low") -> SkillResearchObject:
     return SkillResearchObject(
         skill_id="drawing",
@@ -178,3 +233,14 @@ def test_phase_ordering_only_first_active():
     assert statuses.count("active") == 1
     assert statuses[0] == "active"
     assert all(item == "locked" for item in statuses[1:])
+
+
+def test_structured_template_is_primary_source():
+    roadmap = generate_roadmap(_research(), _template_with_structured(), _params(), uuid4())
+    phase = roadmap.phases["phase_1"]
+    assert phase.competencies == ["line control", "shape accuracy"]
+    assert phase.techniques[0].name == "Contour drill"
+    assert [checkpoint.checkpoint_id for checkpoint in phase.checkpoints] == ["cp_percent", "cp_artifact"]
+    assert phase.checkpoints[0].threshold == 0.85
+    assert phase.checkpoints[0].evidence_type == "numeric"
+    assert phase.checkpoints[1].evidence_type == "artifact"
