@@ -15,7 +15,19 @@ export function ProfileView() {
     ["Time Constraint", profileState.dimensions.time_constraint, "Comfort operating with tight timing."],
   ] as const;
 
-  if (!profileState.isActive) return <main style={{ padding: "2rem" }}><p>Profile is locked. Complete all 6 assessments.</p></main>;
+  if (!profileState.isActive) {
+    return (
+      <main style={{ padding: "2rem" }}>
+        <Card accent="muted">
+          <h1 className="headline">Profile</h1>
+          <p>Profile is not ready yet. Complete all 6 assessment levels to unlock your cognitive profile.</p>
+          <BrutalButton variant="primary" onClick={() => navigate("/assessment")}>
+            Go to Assessment
+          </BrutalButton>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main style={{ padding: "2rem" }}>

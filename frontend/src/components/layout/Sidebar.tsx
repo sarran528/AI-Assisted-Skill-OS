@@ -47,9 +47,9 @@ export function Sidebar() {
 
     const completedLevels = Object.values(assessmentProgress).filter((level) => level.status === "complete").length;
     const isAssessmentComplete = completedLevels === 6;
-    const isProfileLocked = !isAssessmentComplete;
+    const isProfileLocked = false;
     const isSkillsLocked = !profileState.isActive;
-    const isRoadmapLocked = !currentSkill.skillId || !roadmapState.isGenerated;
+    const isRoadmapLocked = false;
 
     const handleLogout = () => {
         resetNavigation();

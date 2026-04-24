@@ -29,6 +29,21 @@ body {
   font-family: var(--font-secondary);
 }
 
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #ffffff;
+  border: 2px solid var(--border);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--accent-yellow);
+  border: 2px solid var(--border);
+}
+
 h1,
 h2,
 h3,
@@ -496,6 +511,7 @@ button:active {
   border: 2px solid var(--border);
   height: 18px;
   background: #fff;
+  box-shadow: 2px 2px 0 var(--shadow);
 }
 
 .metric-row__fill {

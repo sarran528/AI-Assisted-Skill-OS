@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useNavigationStore } from "../store/navigationStore";
@@ -28,8 +28,10 @@ export function DashboardView() {
   const navigate = useNavigate();
   const { assessmentProgress, profileState, currentSkill, roadmapState } = useNavigationStore();
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
+  const getLevelState = (id: number) =>
+    assessmentProgress[id] ?? { status: "not_started" as const, attempts: 0, livesRemaining: 3 };
 
-  const completedLevels = Object.values(assessmentProgress).filter((level) => level.status === "complete").length;
+  const completedLevels = LEVEL_META.filter((level) => getLevelState(level.id).status === "complete").length;
   const assessmentComplete = completedLevels === 6;
   const profileActive = profileState.isActive;
   const roadmapActive = roadmapState.isGenerated;
@@ -48,44 +50,6 @@ export function DashboardView() {
           ? `Active Skill: ${currentSkill.skillName}`
           : "No skill selected",
   };
-
-  const nextStep = useMemo(() => {
-    if (!assessmentComplete) {
-      const remaining = LEVEL_META.filter((level) => assessmentProgress[level.id].status !== "complete").map((level) => level.name);
-      return {
-        title: "Complete your assessment",
-        body: `You have completed ${completedLevels} of 6 levels.`,
-        detail: `Remaining: ${remaining.join(", ") || "None"}`,
-        cta: "Continue Assessment →",
-        action: () => navigate("/assessment"),
-      };
-    }
-    if (!profileActive || !currentSkill.skillId) {
-      return {
-        title: "Select a skill to learn",
-        body: "Your profile is active. Choose a skill to generate your personalized roadmap.",
-        detail: "",
-        cta: "Browse Skills →",
-        action: () => navigate("/skill/select"),
-      };
-    }
-    if (roadmapActive && pendingCheckpoint && !roadmapState.currentTechnique) {
-      return {
-        title: `Submit evidence for: ${activeTechnique?.name ?? "Current technique"}`,
-        body: "Upload your output to complete this checkpoint.",
-        detail: "",
-        cta: "Upload Evidence →",
-        action: () => navigate("/roadmap"),
-      };
-    }
-    return {
-      title: `${currentSkill.skillName ?? "Skill"} — ${activePhase?.name ?? "Phase"}`,
-      body: `Current technique: ${activeTechnique?.name ?? "No active technique"}`,
-      detail: `Checkpoint: ${pendingCheckpoint?.description ?? "No pending checkpoint"}`,
-      cta: "Start Session →",
-      action: () => navigate("/roadmap"),
-    };
-  }, [assessmentComplete, assessmentProgress, completedLevels, currentSkill.skillId, currentSkill.skillName, navigate, pendingCheckpoint, profileActive, roadmapActive, roadmapState.currentTechnique, activePhase?.name, activeTechnique?.name]);
 
   const profileValues = [
     ["Cognitive Capacity", profileState.dimensions.cognitive_capacity],
@@ -138,18 +102,28 @@ export function DashboardView() {
       <section className="dashboard-columns">
         <div className="dashboard-left">
           <BrutalCard accent="yellow">
-            <p className="section-title">YOUR NEXT STEP</p>
-            <h2>{nextStep.title}</h2>
-            <p>{nextStep.body}</p>
-            {nextStep.detail ? <p className="small-copy">{nextStep.detail}</p> : null}
-            <BrutalButton variant="primary" onClick={nextStep.action}>{nextStep.cta}</BrutalButton>
+            <p className="section-title">ACTIVE SKILL CARD</p>
+            <h2>{currentSkill.skillName ?? "No skill selected yet"}</h2>
+            <p>
+              {currentSkill.skillName
+                ? `Focus area: ${activeTechnique?.name ?? "Roadmap generation pending"}`
+                : "Finish assessment and pick a skill to unlock your roadmap."}
+            </p>
+            <p className="small-copy">
+              {currentSkill.skillName
+                ? `Current phase: ${activePhase?.name ?? "Not started"}`
+                : "Progress updates will appear here after skill selection."}
+            </p>
+            <BrutalButton variant="primary" onClick={() => navigate(currentSkill.skillName ? "/roadmap" : "/skill/select")}>
+              {currentSkill.skillName ? "Open Skill Roadmap →" : "Choose Skill →"}
+            </BrutalButton>
           </BrutalCard>
 
           <BrutalCard>
             <h2>Assessment Progress</h2>
             <div className="dashboard-assessment-grid">
               {LEVEL_META.map((level) => {
-                const state = assessmentProgress[level.id];
+                const state = getLevelState(level.id);
                 const status = state.status === "complete" ? "Complete" : state.status === "failed" ? "Failed" : "Not Started";
                 const score = (0.52 + level.id * 0.06).toFixed(2);
                 return (
@@ -161,11 +135,9 @@ export function DashboardView() {
                     <p className="small-copy">{level.measure}</p>
                     <span className={`status-pill status-pill--${state.status === "failed" ? "failed" : state.status === "complete" ? "passed" : "pending"}`}>{status}</span>
                     {state.status === "complete" ? <p className="small-copy">Score: {score}</p> : null}
-                    {state.status !== "complete" ? (
-                      <BrutalButton variant="primary" onClick={() => navigate(`/assessment/run/${level.id}`)}>
-                        {state.status === "failed" ? "Retry" : "Start"}
-                      </BrutalButton>
-                    ) : null}
+                    <p className="small-copy">
+                      Lives: {[0, 1, 2].map((index) => (index < (state.livesRemaining ?? 3) ? "●" : "○")).join(" ")}
+                    </p>
                   </div>
                 );
               })}
@@ -175,6 +147,9 @@ export function DashboardView() {
                 <div className="metric-row__fill" style={{ width: `${(completedLevels / 6) * 100}%` }} />
               </div>
               <span className="small-copy">{completedLevels} / 6 complete</span>
+              <BrutalButton variant="primary" onClick={() => navigate(`/assessment/run/${LEVEL_META.find((entry) => getLevelState(entry.id).status !== "complete")?.id ?? 1}`)} disabled={assessmentComplete}>
+                {assessmentComplete ? "Assessment Complete" : "Open Assessment"}
+              </BrutalButton>
             </div>
           </BrutalCard>
 

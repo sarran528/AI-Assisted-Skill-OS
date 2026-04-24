@@ -6,7 +6,19 @@ import { useNavigationStore } from "../store/navigationStore";
 export function RoadmapView() {
   const navigate = useNavigate();
   const { currentSkill, roadmapState } = useNavigationStore();
-  if (!roadmapState.isGenerated) return <main style={{ padding: "2rem" }}><p>Roadmap is locked. Generate roadmap from Skills first.</p></main>;
+  if (!roadmapState.isGenerated) {
+    return (
+      <main style={{ padding: "2rem" }}>
+        <BrutalCard accent="muted">
+          <h1 className="headline">Skills Roadmap</h1>
+          <p>Roadmap is not generated yet. Select a skill and generate your roadmap to unlock this page.</p>
+          <BrutalButton variant="primary" onClick={() => navigate("/skill/select")}>
+            Go to Skills
+          </BrutalButton>
+        </BrutalCard>
+      </main>
+    );
+  }
 
   return (
     <main className="roadmap-page">

@@ -49,6 +49,7 @@ export interface NavigationState {
     [level: number]: {
       status: AssessmentLevelStatus;
       attempts: number;
+      livesRemaining: number;
       completedAt?: string;
       questionsAnswered?: number;
     };
@@ -112,12 +113,12 @@ const initialState = {
   systemState: "assessment_incomplete" as SystemState,
 
   assessmentProgress: {
-    1: { status: "not_started" as const, attempts: 0 },
-    2: { status: "not_started" as const, attempts: 0 },
-    3: { status: "not_started" as const, attempts: 0 },
-    4: { status: "not_started" as const, attempts: 0 },
-    5: { status: "not_started" as const, attempts: 0 },
-    6: { status: "not_started" as const, attempts: 0 },
+    1: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
+    2: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
+    3: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
+    4: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
+    5: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
+    6: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
   },
 
   profileState: {

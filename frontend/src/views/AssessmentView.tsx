@@ -15,13 +15,40 @@ const LEVELS = [
 export function AssessmentView() {
   const navigate = useNavigate();
   const { assessmentProgress } = useNavigationStore();
+  const getLevelState = (id: number) =>
+    assessmentProgress[id] ?? { status: "not_started" as const, attempts: 0, livesRemaining: 3 };
+  const completedCount = LEVELS.filter((level) => getLevelState(level.id).status === "complete").length;
+  const activeLevel = LEVELS.find((level) => getLevelState(level.id).status !== "complete") ?? null;
+  const actionLabel = !activeLevel
+    ? "Assessment Complete"
+    : assessmentProgress[activeLevel.id].status === "failed"
+      ? `Retry Level ${activeLevel.id}`
+      : assessmentProgress[activeLevel.id].status === "in_progress"
+        ? `Continue Level ${activeLevel.id}`
+        : `Start Level ${activeLevel.id}`;
 
   return (
     <main style={{ padding: "2rem" }}>
       <h1 className="headline" style={{ marginBottom: "1rem" }}>Assessment</h1>
+      <BrutalCard className="skill-item" style={{ marginBottom: "1rem" }}>
+        <h2>Assessment Progress</h2>
+        <p className="small-copy">{completedCount} / 6 levels complete</p>
+        <div className="metric-row__bar" aria-label="Assessment completion progress">
+          <div className="metric-row__fill" style={{ width: `${(completedCount / 6) * 100}%` }} />
+        </div>
+        <div className="skill-card__actions">
+          <BrutalButton
+            variant="primary"
+            disabled={!activeLevel}
+            onClick={() => activeLevel && navigate(`/assessment/run/${activeLevel.id}`)}
+          >
+            {actionLabel}
+          </BrutalButton>
+        </div>
+      </BrutalCard>
       <div className="skill-grid">
         {LEVELS.map((level) => {
-          const levelState = assessmentProgress[level.id];
+          const levelState = getLevelState(level.id);
           const isInProgress = levelState.status === "in_progress";
           const isComplete = levelState.status === "complete";
           const statusLabel = isComplete
@@ -41,18 +68,11 @@ export function AssessmentView() {
               <span className={`status-pill status-pill--${isComplete ? "passed" : isInProgress ? "attempted" : "pending"}`}>
                 {statusLabel}
               </span>
-              {isInProgress && <p className="small-copy">Lives: ● ● ●</p>}
+              <p className="small-copy">
+                Lives: {[0, 1, 2].map((index) => (index < (levelState.livesRemaining ?? 3) ? "●" : "○")).join(" ")}
+              </p>
               <div className="skill-card__actions">
-                {isComplete ? (
-                  <span>✓</span>
-                ) : (
-                  <BrutalButton
-                    variant="primary"
-                    onClick={() => navigate(`/assessment/run/${level.id}`)}
-                  >
-                    {isInProgress ? "Continue" : "Start"}
-                  </BrutalButton>
-                )}
+                {isComplete ? <span>✓ Complete</span> : <span className="small-copy">Launch from the progress card above</span>}
               </div>
             </BrutalCard>
           );
