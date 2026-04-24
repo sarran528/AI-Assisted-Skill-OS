@@ -292,7 +292,7 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
       recovery_slope: recoveryAttempts > 0 ? recoverySuccess / recoveryAttempts : 1,
     };
 
-    onComplete(signals, score, lives);
+    onComplete(signals, score, livesRef.current);
   };
 
   if (phase === 'rules') {
