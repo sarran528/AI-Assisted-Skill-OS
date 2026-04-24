@@ -1,144 +1,72 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BrutalCard } from "../components/brutal/BrutalCard";
-import { BrutalButton } from "../components/brutal/BrutalButton";
-import { useNavigationStore } from "../store/navigationStore";
-
-const TOTAL_QUESTIONS = 10;
-const LEVEL_NAMES: Record<number, string> = {
-  1: "Executive Control",
-  2: "Sustained Attention",
-  3: "Working Memory",
-  4: "Motor Baseline",
-  5: "Stress Resilience",
-  6: "Time Constraint",
-};
-
-const choices = ["A", "B", "C", "D"];
+import { useAssessmentStore, GameId, BehavioralSignals, TimeSignals } from "../stores/assessmentStore";
+import { StroopTest } from "../components/assessment/games/StroopTest";
+import { FlankerTest } from "../components/assessment/games/FlankerTest";
+import { PuzzleGame } from "../components/assessment/games/PuzzleGame";
+import { DartGame } from "../components/assessment/games/DartGame";
+import { PressureTest } from "../components/assessment/games/PressureTest";
+import { TimeQuestions } from "../components/assessment/games/TimeQuestions";
 
 export function AssessmentRunView() {
-  const navigate = useNavigate();
   const { level } = useParams();
-  const levelNumber = Number(level ?? "");
-  const isValidLevel = Number.isInteger(levelNumber) && levelNumber >= 1 && levelNumber <= 6;
-  const {
-    assessmentProgress,
-    updateAssessmentLevel,
-    setProfileState,
-    setSystemState,
-  } = useNavigationStore();
-  const initializedRef = useRef(false);
+  const navigate = useNavigate();
+  const finishLevel = useAssessmentStore((state) => state.finishLevel);
+  
+  const levelNumber = Number(level) as GameId;
 
-  const [question, setQuestion] = useState(1);
-  const [lives, setLives] = useState(() => (isValidLevel ? assessmentProgress[levelNumber]?.livesRemaining ?? 3 : 3));
-  const [feedback, setFeedback] = useState("");
-
-  useEffect(() => {
-    if (!isValidLevel || initializedRef.current) {
-      return;
-    }
-    initializedRef.current = true;
-    const attempts = assessmentProgress[levelNumber]?.attempts ?? 0;
-    updateAssessmentLevel(levelNumber, {
-      status: "in_progress",
-      attempts: attempts + 1,
-      livesRemaining: 3,
-      questionsAnswered: 0,
-    });
-    setLives(3);
-  }, [assessmentProgress, isValidLevel, levelNumber, updateAssessmentLevel]);
-
-  const timerSeconds = useMemo(() => Math.max(0, 60 - question * 2), [question]);
-
-  const finishLevel = (completed: boolean) => {
-    if (!isValidLevel) {
-      navigate("/assessment");
-      return;
-    }
-    updateAssessmentLevel(levelNumber, {
-      status: completed ? "complete" : "failed",
-      completedAt: completed ? new Date().toISOString() : undefined,
-      questionsAnswered: completed ? TOTAL_QUESTIONS : question - 1,
-      livesRemaining: completed ? lives : 0,
-    });
-
-    const levelsAfter = { ...assessmentProgress, [levelNumber]: { ...assessmentProgress[levelNumber], status: completed ? "complete" : "failed" } };
-    const completedCount = Object.values(levelsAfter).filter((item) => item.status === "complete").length;
-    if (completedCount === 6) {
-      setProfileState({
-        isActive: true,
-        dimensions: {
-          cognitive_capacity: 0.74,
-          attention_stability: 0.61,
-          learning_tolerance: 0.58,
-          motor_baseline: 0.69,
-          stress_resilience: 0.72,
-          time_constraint: 0.45,
-        },
-      });
-      setSystemState("profile_active");
-    }
+  const handleComplete = (signals: BehavioralSignals, score: number, livesRemaining: number, timeSignals?: TimeSignals) => {
+    finishLevel(levelNumber, signals, timeSignals, livesRemaining, score, true);
     navigate("/assessment");
   };
 
-  const onAnswer = (choice: string) => {
-    const correct = choices[(question + levelNumber) % choices.length];
-    if (choice !== correct) {
-      const nextLives = lives - 1;
-      setLives(nextLives);
-      if (isValidLevel) {
-        updateAssessmentLevel(levelNumber, { livesRemaining: nextLives });
-      }
-      setFeedback(`Life lost. "${choice}" was incorrect.`);
-      if (nextLives <= 0) {
-        window.setTimeout(() => finishLevel(false), 500);
-      }
-      return;
-    }
-
-    const nextQuestion = question + 1;
-    setFeedback("Correct.");
-    if (isValidLevel) {
-      updateAssessmentLevel(levelNumber, { questionsAnswered: question, livesRemaining: lives });
-    }
-    if (nextQuestion > TOTAL_QUESTIONS) {
-      window.setTimeout(() => finishLevel(true), 250);
-      return;
-    }
-    setQuestion(nextQuestion);
+  const handleFail = () => {
+    const emptySignals: BehavioralSignals = {
+      accuracy: 0,
+      mean_response_time: 0,
+      response_time_variance: 0,
+      performance_decay: 0,
+      retry_depth: 0,
+      dropout_depth_index: 0,
+      recovery_slope: 0
+    };
+    finishLevel(levelNumber, emptySignals, undefined, 0, 0, false);
+    navigate("/assessment");
   };
 
-  if (!isValidLevel) {
-    return (
-      <main className="assessment-page">
-        <BrutalCard accent="red">
-          <h1 className="headline">Assessment Level Not Found</h1>
-          <p className="small-copy">This assessment route is invalid. Go back to continue from the assessment progress card.</p>
-          <BrutalButton variant="secondary" onClick={() => navigate("/assessment")}>
-            Back to Assessment
-          </BrutalButton>
-        </BrutalCard>
-      </main>
-    );
-  }
+  const renderGame = () => {
+    switch (levelNumber) {
+      case 1:
+        return <StroopTest onComplete={handleComplete} onFail={handleFail} />;
+      case 2:
+        return <FlankerTest onComplete={handleComplete} onFail={handleFail} />;
+      case 3:
+        return <PuzzleGame onComplete={handleComplete} onFail={handleFail} />;
+      case 4:
+        return <DartGame onComplete={handleComplete} onFail={handleFail} />;
+      case 5:
+        return <PressureTest onComplete={handleComplete} onFail={handleFail} />;
+      case 6:
+        return <TimeQuestions onComplete={handleComplete} onFail={handleFail} />;
+      default:
+        return (
+          <div className="neo-brutalist-card" style={{ padding: '32px', textAlign: 'center' }}>
+            <h1 className="neo-brutalist-title">LEVEL NOT FOUND</h1>
+            <p style={{ marginTop: '16px' }}>This assessment level does not exist.</p>
+            <button 
+              className="neo-brutalist-button neo-brutalist-button--primary"
+              style={{ marginTop: '24px' }}
+              onClick={() => navigate("/assessment")}
+            >
+              BACK TO ASSESSMENT
+            </button>
+          </div>
+        );
+    }
+  };
 
   return (
-    <main style={{ minHeight: "100vh", padding: "2rem", background: "#fffef0" }}>
-      <h1 className="headline">{LEVEL_NAMES[levelNumber] ?? `Level ${levelNumber}`}</h1>
-      <p>Question {question} / {TOTAL_QUESTIONS}</p>
-      <p>Lives remaining: {[0, 1, 2].map((i) => (i < lives ? "●" : "○")).join(" ")}</p>
-      <p>Timer: {timerSeconds}s</p>
-      <div className="brutal-card" style={{ marginTop: "1rem" }}>
-        <p>Choose the best answer for this cognitive prompt.</p>
-        <div className="button-row">
-          {choices.map((choice) => (
-            <BrutalButton key={choice} onClick={() => onAnswer(choice)}>
-              {choice}
-            </BrutalButton>
-          ))}
-        </div>
-        {feedback ? <p className="small-copy" style={{ marginTop: "1rem" }}>{feedback}</p> : null}
-      </div>
+    <main style={{ minHeight: "100vh", background: "#f5f0e8" }}>
+      {renderGame()}
     </main>
   );
 }

@@ -8,12 +8,6 @@ export type SystemState =
   | "roadmap_active"
   | "session_active";
 
-export type AssessmentLevelStatus =
-  | "not_started"
-  | "in_progress"
-  | "complete"
-  | "failed";
-
 export interface RoadmapCheckpoint {
   id: string;
   description: string;
@@ -44,16 +38,6 @@ export interface RoadmapPhase {
 
 export interface NavigationState {
   systemState: SystemState;
-
-  assessmentProgress: {
-    [level: number]: {
-      status: AssessmentLevelStatus;
-      attempts: number;
-      livesRemaining: number;
-      completedAt?: string;
-      questionsAnswered?: number;
-    };
-  };
 
   profileState: {
     isActive: boolean;
@@ -92,7 +76,7 @@ export interface NavigationState {
   };
 
   setSystemState: (state: SystemState) => void;
-  updateAssessmentLevel: (level: number, update: Partial<NavigationState["assessmentProgress"][number]>) => void;
+
   setProfileState: (profile: Partial<NavigationState["profileState"]>) => void;
   setCurrentSkill: (skill: Partial<NavigationState["currentSkill"]>) => void;
   setRoadmapState: (roadmap: Partial<NavigationState["roadmapState"]>) => void;
@@ -111,15 +95,6 @@ export interface NavigationState {
 
 const initialState = {
   systemState: "assessment_incomplete" as SystemState,
-
-  assessmentProgress: {
-    1: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
-    2: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
-    3: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
-    4: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
-    5: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
-    6: { status: "not_started" as const, attempts: 0, livesRemaining: 3 },
-  },
 
   profileState: {
     isActive: false,
@@ -164,16 +139,6 @@ export const useNavigationStore = create<NavigationState>()(
       ...initialState,
 
       setSystemState: (systemState) => set({ systemState }),
-
-      updateAssessmentLevel: (level, update) => set((state) => ({
-        assessmentProgress: {
-          ...state.assessmentProgress,
-          [level]: {
-            ...state.assessmentProgress[level],
-            ...update,
-          },
-        },
-      })),
 
       setProfileState: (profile) => set((state) => ({
         profileState: {

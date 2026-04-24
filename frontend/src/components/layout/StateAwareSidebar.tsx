@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { BrutalButton as Button } from '../brutal/BrutalButton';
 import { useNavigationStore } from '../../store/navigationStore';
+import { useAssessmentStore, GAME_IDS } from '../../stores/assessmentStore';
 import {
   Home,
   CheckSquare,
@@ -31,12 +32,13 @@ export function StateAwareSidebar() {
   const location = useLocation();
   const { 
     systemState, 
-    assessmentProgress, 
     profileState, 
     currentSkill, 
     roadmapState, 
     sessionState 
   } = useNavigationStore();
+  const { games } = useAssessmentStore();
+  const completedCount = GAME_IDS.filter(id => games[id].completed).length;
 
   const navItems: NavItem[] = [
     {
@@ -53,38 +55,25 @@ export function StateAwareSidebar() {
       icon: CheckSquare,
       getState: () => {
         if (location.pathname === '/assessment') return 'active';
-        
-        const completedLevels = Object.values(assessmentProgress)
-          .filter(level => level.status === 'complete').length;
-        
-        if (completedLevels === 6) return 'complete';
-        if (completedLevels > 0) return 'incomplete';
+        if (completedCount === 6) return 'complete';
+        if (completedCount > 0) return 'incomplete';
         return 'incomplete';
       },
       getProgress: () => {
-        const completedLevels = Object.values(assessmentProgress)
-          .filter(level => level.status === 'complete').length;
-        const inProgressLevels = Object.values(assessmentProgress)
-          .filter(level => level.status === 'in_progress').length;
-        
         return (
           <div className="flex items-center space-x-1">
-            {Array.from({ length: 6 }, (_, i) => {
-              const level = i + 1;
-              const status = assessmentProgress[level]?.status;
-              
-              if (status === 'complete') {
-                return <Check key={level} className="h-3 w-3 text-green-600" />;
-              } else if (status === 'in_progress') {
-                return <Play key={level} className="h-3 w-3 text-yellow-600" />;
-              } else if (status === 'locked') {
-                return <Lock key={level} className="h-3 w-3 text-gray-400" />;
+            {GAME_IDS.map((id) => {
+              const g = games[id];
+              if (g.completed) {
+                return <Check key={id} className="h-3 w-3 text-green-600" />;
+              } else if (g.attempts > 0) {
+                return <Play key={id} className="h-3 w-3 text-yellow-600" />;
               } else {
-                return <Clock key={level} className="h-3 w-3 text-blue-600" />;
+                return <Clock key={id} className="h-3 w-3 text-blue-600" />;
               }
             })}
             <span className="text-xs text-muted-foreground ml-2">
-              {completedLevels}/6 complete
+              {completedCount}/6 complete
             </span>
           </div>
         );
@@ -97,20 +86,13 @@ export function StateAwareSidebar() {
       icon: User,
       getState: () => {
         if (location.pathname === '/profile') return 'active';
-        
-        const completedLevels = Object.values(assessmentProgress)
-          .filter(level => level.status === 'complete').length;
-        
-        if (completedLevels < 6) return 'locked';
+        if (completedCount < 6) return 'locked';
         if (profileState.isActive) return 'complete';
         return 'incomplete';
       },
       getTooltip: () => {
-        const completedLevels = Object.values(assessmentProgress)
-          .filter(level => level.status === 'complete').length;
-        
-        if (completedLevels < 6) {
-          return `Complete all 6 assessment levels first (${completedLevels}/6 done)`;
+        if (completedCount < 6) {
+          return `Complete all 6 assessment levels first (${completedCount}/6 done)`;
         }
         return profileState.isActive ? 'View your profile' : 'Profile building in progress';
       },

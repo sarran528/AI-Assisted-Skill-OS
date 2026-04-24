@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import React from "react";
 import { useNavigationStore } from "../../store/navigationStore";
+import { useAssessmentStore, GAME_IDS } from "../../stores/assessmentStore";
 
 // --- SidebarItem Component ---
 interface SidebarItemProps {
@@ -38,14 +39,14 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, label, state, locked, too
 export function Sidebar() {
     const { user, clearAuth } = useAuthStore();
     const {
-      assessmentProgress,
       profileState,
       currentSkill,
       roadmapState,
       resetNavigation,
     } = useNavigationStore();
+    const { games } = useAssessmentStore();
 
-    const completedLevels = Object.values(assessmentProgress).filter((level) => level.status === "complete").length;
+    const completedLevels = GAME_IDS.filter(id => games[id].completed).length;
     const isAssessmentComplete = completedLevels === 6;
     const isProfileLocked = false;
     const isSkillsLocked = !profileState.isActive;

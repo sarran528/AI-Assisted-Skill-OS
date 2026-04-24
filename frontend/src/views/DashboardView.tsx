@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useNavigationStore } from "../store/navigationStore";
+import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
 
 const LEVEL_META = [
   { id: 1, name: "Executive Control", measure: "Inhibition and impulse control." },
@@ -26,12 +27,15 @@ const PARAMETER_SNAPSHOT = [
 
 export function DashboardView() {
   const navigate = useNavigate();
-  const { assessmentProgress, profileState, currentSkill, roadmapState } = useNavigationStore();
+  const { profileState, currentSkill, roadmapState } = useNavigationStore();
+  const { games } = useAssessmentStore();
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
-  const getLevelState = (id: number) =>
-    assessmentProgress[id] ?? { status: "not_started" as const, attempts: 0, livesRemaining: 3 };
+  const getLevelState = (id: number) => {
+    const g = games[id as keyof typeof games];
+    return { status: g && g.completed ? 'complete' as const : 'not_started' as const, attempts: g?.attempts ?? 0, livesRemaining: g?.lastLivesRemaining ?? 3 };
+  };
 
-  const completedLevels = LEVEL_META.filter((level) => getLevelState(level.id).status === "complete").length;
+  const completedLevels = GAME_IDS.filter(id => games[id].completed).length;
   const assessmentComplete = completedLevels === 6;
   const profileActive = profileState.isActive;
   const roadmapActive = roadmapState.isGenerated;

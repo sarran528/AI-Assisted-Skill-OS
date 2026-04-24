@@ -2,10 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { BrutalCard as Card } from "../components/brutal/BrutalCard";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { useNavigationStore } from "../store/navigationStore";
+import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
 
 export function ProfileView() {
   const navigate = useNavigate();
-  const { profileState, assessmentProgress } = useNavigationStore();
+  const { profileState } = useNavigationStore();
+  const { games } = useAssessmentStore();
   const rows = [
     ["Cognitive Capacity", profileState.dimensions.cognitive_capacity, "Working memory and problem-solving depth."],
     ["Attention Stability", profileState.dimensions.attention_stability, "Consistency of focus over repeated work."],
@@ -46,16 +48,19 @@ export function ProfileView() {
       <Card style={{ marginTop: "1rem" }}>
         <h2>Assessment History</h2>
         <div className="recent-session-list">
-          {Object.entries(assessmentProgress).map(([level, state]) => (
-            <div key={level} className="recent-session-item">
-              <span>Level {level}</span>
-              <span>{state.status}</span>
-              <span>{state.completedAt ? new Date(state.completedAt).toLocaleString() : "Not completed"}</span>
-              <BrutalButton onClick={() => navigate("/assessment")} variant="secondary">
-                Retake Assessment
-              </BrutalButton>
-            </div>
-          ))}
+          {GAME_IDS.map((id) => {
+            const g = games[id];
+            return (
+              <div key={id} className="recent-session-item">
+                <span>Level {id}</span>
+                <span>{g.completed ? 'complete' : 'not started'}</span>
+                <span>{g.completed ? `Score: ${g.bestScore}` : 'Not completed'}</span>
+                <BrutalButton onClick={() => navigate("/assessment")} variant="secondary">
+                  Retake Assessment
+                </BrutalButton>
+              </div>
+            );
+          })}
         </div>
       </Card>
     </main>

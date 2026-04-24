@@ -2,79 +2,107 @@ import { useNavigate } from "react-router-dom";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useNavigationStore } from "../store/navigationStore";
+import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
 
 const LEVELS = [
-  { id: 1, name: "Executive Control", description: "Measures inhibition and impulse control." },
-  { id: 2, name: "Sustained Attention", description: "Tracks focus consistency over repeated tasks." },
-  { id: 3, name: "Working Memory", description: "Measures temporary information retention." },
-  { id: 4, name: "Motor Baseline", description: "Checks motor speed and rhythm stability." },
-  { id: 5, name: "Stress Resilience", description: "Evaluates stability under pressure." },
-  { id: 6, name: "Time Constraint", description: "Measures decision quality under time limits." },
+  { id: 1, name: "Stroop Test", tag: "Executive Control", description: "Measures inhibition and impulse control." },
+  { id: 2, name: "Flanker Test", tag: "Sustained Attention", description: "Tracks focus consistency over repeated tasks." },
+  { id: 3, name: "Puzzle Game", tag: "Working Memory", description: "Measures temporary information retention." },
+  { id: 4, name: "Dart Game", tag: "Motor Baseline", description: "Checks motor speed and rhythm stability." },
+  { id: 5, name: "Pressure Test", tag: "Stress Resilience", description: "Evaluates stability under pressure." },
+  { id: 6, name: "Time Questions", tag: "Time Constraint", description: "Measures decision quality under time limits." },
 ];
 
 export function AssessmentView() {
   const navigate = useNavigate();
-  const { assessmentProgress } = useNavigationStore();
-  const getLevelState = (id: number) =>
-    assessmentProgress[id] ?? { status: "not_started" as const, attempts: 0, livesRemaining: 3 };
-  const completedCount = LEVELS.filter((level) => getLevelState(level.id).status === "complete").length;
-  const activeLevel = LEVELS.find((level) => getLevelState(level.id).status !== "complete") ?? null;
-  const actionLabel = !activeLevel
-    ? "Assessment Complete"
-    : assessmentProgress[activeLevel.id].status === "failed"
-      ? `Retry Level ${activeLevel.id}`
-      : assessmentProgress[activeLevel.id].status === "in_progress"
-        ? `Continue Level ${activeLevel.id}`
-        : `Start Level ${activeLevel.id}`;
+  const { games, allLevelsComplete } = useAssessmentStore();
+  const { setProfileState, setSystemState } = useNavigationStore();
+
+  const completedCount = GAME_IDS.filter(id => games[id].completed).length;
+  const canComputeProfile = allLevelsComplete();
+
+  const getStatusBadge = (attempts: number) => {
+    if (attempts === 0) return { label: "NOT ATTEMPTED", class: "neo-brutalist-status-badge--grey" };
+    if (attempts === 1) return { label: "TRIED ONCE", class: "neo-brutalist-status-badge--yellow" };
+    if (attempts === 2) return { label: "TRIED TWICE", class: "neo-brutalist-status-badge--orange" };
+    if (attempts === 3) return { label: "TRIED THRICE", class: "neo-brutalist-status-badge--green" };
+    return { label: `TRIED ${attempts} TIMES`, class: "neo-brutalist-status-badge--green" };
+  };
+
+  const handleComputeProfile = () => {
+    // This triggers the pipeline normalization. 
+    // For now, we set a placeholder profile as per previous logic, 
+    // but in a real app this would call the backend with the collected signals.
+    setProfileState({
+      isActive: true,
+      dimensions: {
+        cognitive_capacity: 0.74,
+        attention_stability: 0.61,
+        learning_tolerance: 0.58,
+        motor_baseline: 0.69,
+        stress_resilience: 0.72,
+        time_constraint: 0.45,
+      },
+    });
+    setSystemState("profile_active");
+    navigate("/");
+  };
 
   return (
-    <main style={{ padding: "2rem" }}>
-      <h1 className="headline" style={{ marginBottom: "1rem" }}>Assessment</h1>
-      <BrutalCard className="skill-item" style={{ marginBottom: "1rem" }}>
-        <h2>Assessment Progress</h2>
-        <p className="small-copy">{completedCount} / 6 levels complete</p>
-        <div className="metric-row__bar" aria-label="Assessment completion progress">
-          <div className="metric-row__fill" style={{ width: `${(completedCount / 6) * 100}%` }} />
-        </div>
-        <div className="skill-card__actions">
-          <BrutalButton
-            variant="primary"
-            disabled={!activeLevel}
-            onClick={() => activeLevel && navigate(`/assessment/run/${activeLevel.id}`)}
+    <main className="neo-brutalist" style={{ padding: "2rem", minHeight: "100vh" }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1 className="neo-brutalist-title">ASSESSMENT SUITE</h1>
+        {canComputeProfile && (
+          <button 
+            className="neo-brutalist-button neo-brutalist-button--primary"
+            onClick={handleComputeProfile}
           >
-            {actionLabel}
-          </BrutalButton>
+            COMPUTE PROFILE
+          </button>
+        )}
+      </div>
+
+      <div className="neo-brutalist-card" style={{ marginBottom: "2rem" }}>
+        <h2>PROGRESS: {completedCount} / 6 LEVELS</h2>
+        <div className="metric-row__bar" style={{ height: '30px', marginTop: '1rem' }}>
+          <div className="metric-row__fill" style={{ width: `${(completedCount / 6) * 100}%`, background: '#FFE500' }} />
         </div>
-      </BrutalCard>
-      <div className="skill-grid">
+      </div>
+
+      <div className="skill-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
         {LEVELS.map((level) => {
-          const levelState = getLevelState(level.id);
-          const isInProgress = levelState.status === "in_progress";
-          const isComplete = levelState.status === "complete";
-          const statusLabel = isComplete
-            ? "Complete"
-            : isInProgress
-              ? "In Progress"
-              : levelState.status === "failed"
-                ? "Failed"
-                : "Not Started";
+          const game = games[level.id as keyof typeof games];
+          const badge = getStatusBadge(game.attempts);
 
           return (
-            <BrutalCard key={level.id} className="skill-item">
-              <div className="skill-card__header">
-                <h2>{level.name}</h2>
-                <p className="small-copy">{level.description}</p>
+            <div key={level.id} className="neo-brutalist-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="neo-brutalist-tag" style={{ alignSelf: 'flex-start' }}>{level.tag}</div>
+              <h3 style={{ margin: 0, fontSize: '20px' }}>{level.name}</h3>
+              <p className="small-copy" style={{ flex: 1 }}>{level.description}</p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                <span className={`neo-brutalist-status-badge ${badge.class}`}>
+                  {badge.label}
+                </span>
+                <div style={{ fontSize: '18px' }}>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <span key={i}>{i < game.lastLivesRemaining ? '●' : '○'}</span>
+                  ))}
+                </div>
               </div>
-              <span className={`status-pill status-pill--${isComplete ? "passed" : isInProgress ? "attempted" : "pending"}`}>
-                {statusLabel}
-              </span>
-              <p className="small-copy">
-                Lives: {[0, 1, 2].map((index) => (index < (levelState.livesRemaining ?? 3) ? "●" : "○")).join(" ")}
-              </p>
-              <div className="skill-card__actions">
-                {isComplete ? <span>✓ Complete</span> : <span className="small-copy">Launch from the progress card above</span>}
+              
+              <div style={{ fontWeight: '900', marginTop: '8px' }}>
+                BEST: {game.bestScore} PTS
               </div>
-            </BrutalCard>
+
+              <button 
+                className="neo-brutalist-button neo-brutalist-button--primary"
+                style={{ marginTop: '16px', width: '100%' }}
+                onClick={() => navigate(`/assessment/run/${level.id}`)}
+              >
+                {game.attempts > 0 ? 'RETRY ASSESSMENT' : 'START ASSESSMENT'}
+              </button>
+            </div>
           );
         })}
       </div>
