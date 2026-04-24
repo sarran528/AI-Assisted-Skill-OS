@@ -31,6 +31,7 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
   const totalValidMoves = useRef(0);
   const solveTimes = useRef<number[]>([]);
   const startTime = useRef<number>(0);
+  const solveTimeSnap = useRef<number>(0); // captured at solve-detection
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const config = LEVELS[question];
@@ -55,7 +56,13 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
     startTime.current = Date.now();
   };
 
-  const isSolved = (t: number[]) => t.every((v, i) => v === i);
+  const isSolved = (t: number[]) => {
+    // Solved = [1, 2, 3, ..., n-1, 0] — tiles in order, empty at end
+    for (let i = 0; i < t.length - 1; i++) {
+      if (t[i] !== i + 1) return false;
+    }
+    return t[t.length - 1] === 0;
+  };
 
   const startPlaying = () => {
     setGameState('playing');
@@ -120,14 +127,14 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
 
       if (isSolved(newTiles)) {
         if (timerRef.current) clearInterval(timerRef.current);
+        solveTimeSnap.current = Date.now() - startTime.current; // capture exact solve time
         setGameState('solved');
       }
     }
   };
 
   const handleSubmit = () => {
-    const timeSpent = Date.now() - startTime.current;
-    solveTimes.current.push(timeSpent);
+    solveTimes.current.push(solveTimeSnap.current);
 
     const bonus = Math.floor((timeLeft / config.timeLimit) * 20);
     setScore(prev => prev + 20 + bonus);
@@ -137,7 +144,6 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
     } else {
       setQuestion(prev => prev + 1);
       setGameState('playing');
-      // generatePuzzle will fire from the effect below
     }
   };
 
@@ -249,7 +255,7 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
         </div>
 
         <p style={{ marginTop: '24px', fontWeight: 900 }}>
-          ARRANGE TILES IN NUMERICAL ORDER (1 → {config.size * config.size - 1})
+          ARRANGE TILES IN ORDER (1 → {config.size * config.size - 1}), EMPTY SPACE GOES LAST
         </p>
 
         {gameState === 'solved' && (
@@ -258,7 +264,7 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
             style={{ marginTop: '24px', width: '100%', fontSize: '24px', padding: '20px' }}
             onClick={handleSubmit}
           >
-            ✓ SUBMIT SOLUTION
+            {question >= TOTAL_PUZZLES - 1 ? '✓ SUBMIT & FINISH' : '✓ SUBMIT & NEXT PUZZLE'}
           </button>
         )}
       </div>

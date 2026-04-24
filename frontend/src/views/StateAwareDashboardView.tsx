@@ -3,6 +3,7 @@ import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useNavigationStore } from "../store/navigationStore";
 import { useAuthStore } from "../store/authStore";
+import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
 import { SidebarLayout } from "../components/layout/SidebarLayout";
 import {
   CheckSquare,
@@ -23,18 +24,16 @@ export function StateAwareDashboardView() {
   const user = useAuthStore((state) => state.user);
   const {
     systemState,
-    assessmentProgress,
     profileState,
     currentSkill,
     roadmapState,
     sessionState,
   } = useNavigationStore();
+  const { games } = useAssessmentStore();
 
   // Calculate assessment completion
-  const completedLevels = Object.values(assessmentProgress)
-    .filter(level => level.status === 'complete').length;
-  const inProgressLevels = Object.values(assessmentProgress)
-    .filter(level => level.status === 'in_progress').length;
+  const completedLevels = GAME_IDS.filter(id => games[id].completed).length;
+  const inProgressLevels = GAME_IDS.filter(id => !games[id].completed && games[id].attempts > 0).length;
 
   // Render different dashboard states based on system state
   const renderDashboardContent = () => {
@@ -80,11 +79,11 @@ export function StateAwareDashboardView() {
 
         {/* Level Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {Object.entries(assessmentProgress).map(([level, progress]) => {
-            const levelNum = parseInt(level);
-            const isLocked = progress.status === 'locked';
-            const isInProgress = progress.status === 'in_progress';
-            const isComplete = progress.status === 'complete';
+          {GAME_IDS.map((levelNum) => {
+            const progress = games[levelNum];
+            const isComplete = progress.completed;
+            const isInProgress = !isComplete && progress.attempts > 0;
+            const isLocked = !isComplete && !isInProgress;
 
             return (
               <BrutalCard
@@ -105,14 +104,9 @@ export function StateAwareDashboardView() {
                     {isInProgress && 'In Progress'}
                     {isComplete && 'Complete'}
                   </p>
-                  {isInProgress && progress.questionsAnswered && (
+                  {isInProgress && (
                     <p className="text-xs text-muted-foreground">
-                      {progress.questionsAnswered}/10 questions
-                    </p>
-                  )}
-                  {isInProgress && progress.livesRemaining && (
-                    <p className="text-xs text-muted-foreground">
-                      {progress.livesRemaining} lives remaining
+                      {progress.lastLivesRemaining} lives remaining
                     </p>
                   )}
                 </div>
