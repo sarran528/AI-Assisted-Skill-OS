@@ -192,17 +192,27 @@ export const StroopTest: React.FC<StroopTestProps> = ({ onComplete, onFail }) =>
           {currentQ.word}
         </div>
 
-        <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', maxWidth: '600px', margin: '0 auto' }}>
-          {WORDS.map((label) => (
-            <button
-              key={label}
-              className="neo-brutalist-button neo-brutalist-button--primary"
-              onClick={() => handleAnswer(label)}
-              disabled={isGameOver}
-            >
-              {label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
+            {WORDS.slice(0, 4).map((label) => (
+              <button
+                key={label}
+                className="neo-brutalist-button neo-brutalist-button--primary"
+                onClick={() => handleAnswer(label)}
+                disabled={isGameOver}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            key="PURPLE"
+            className="neo-brutalist-button neo-brutalist-button--primary"
+            onClick={() => handleAnswer("PURPLE")}
+            disabled={isGameOver}
+          >
+            PURPLE
+          </button>
         </div>
         
         <p style={{ marginTop: '32px', fontWeight: 900 }}>PRESS THE BUTTON MATCHING THE INK COLOR</p>
