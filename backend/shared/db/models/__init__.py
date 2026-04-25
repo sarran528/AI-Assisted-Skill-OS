@@ -1,5 +1,6 @@
 from backend.shared.db.base import Base
 from backend.shared.db.models.audit_log import AuditLog
+from backend.shared.db.models.assessment_session import AssessmentSession
 from backend.shared.db.models.baseline_skill_state import BaselineSkillState
 from backend.shared.db.models.checkpoint_state import CheckpointState
 from backend.shared.db.models.cognitive_profile import CognitiveProfile
@@ -19,6 +20,7 @@ from backend.shared.db.models.user import User
 __all__ = [
     "Base",
     "AuditLog",
+    "AssessmentSession",
     "BaselineSkillState",
     "CheckpointState",
     "CognitiveProfile",

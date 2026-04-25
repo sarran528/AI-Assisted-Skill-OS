@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model alembic_version {
+  version_num String @id(map: "alembic_version_pkc") @db.VarChar(32)
+}
+
+model assessment_sessions {
+  id               String   @id @db.VarChar(36)
+  session_id       String   @unique @db.VarChar(36)
+  user_id          String   @db.VarChar(36)
+  status           String   @default("in_progress") @db.VarChar(32)
+  submissions      Json     @default("{}")
+  completed_levels Json     @default("[]")
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  users            users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([session_id], map: "assessment_session_id_idx")
+  @@index([user_id, status], map: "assessment_user_status_idx")
+}
+
+model audit_log {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  user_id     String?  @db.VarChar(36)
+  action      String   @db.VarChar(64)
+  entity_type String?  @db.VarChar(64)
+  entity_id   String?  @db.VarChar(36)
+  ip_address  String?  @db.Inet
+  metadata    Json     @default("{}")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users?   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model baseline_skill_states {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  user_id           String   @db.VarChar(36)
+  skill_id          String   @db.VarChar(64)
+  profile_version   Decimal  @default(1) @db.Decimal(5, 0)
+  exposure_score    Decimal  @db.Decimal(5, 4)
+  declarative_score Decimal  @db.Decimal(5, 4)
+  confidence_score  Decimal  @db.Decimal(5, 4)
+  perceived_level   Decimal  @db.Decimal(5, 4)
+  actual_level      Decimal  @db.Decimal(5, 4)
+  confidence_bias   Decimal  @db.Decimal(6, 5)
+  raw_responses     Json?
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  users             users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model checkpoint_states {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  roadmap_id    String   @db.VarChar(36)
+  phase_slug    String   @db.VarChar(64)
+  checkpoint_id String   @db.VarChar(64)
+  status        String   @default("pending") @db.VarChar(32)
+  attempts      Int      @default(0)
+  last_result   Json?
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  roadmaps      roadmaps @relation(fields: [roadmap_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model cognitive_profiles {
+  id                  String                @id @db.VarChar(36)
+  user_id             String                @db.VarChar(36)
+  version             Int                   @default(1)
+  cognitive_capacity  Decimal               @db.Decimal(6, 5)
+  attention_stability Decimal               @db.Decimal(6, 5)
+  learning_tolerance  Decimal               @db.Decimal(6, 5)
+  motor_baseline      Decimal               @db.Decimal(6, 5)
+  stress_resilience   Decimal               @db.Decimal(6, 5)
+  time_constraint     Decimal               @db.Decimal(6, 5)
+  raw_signals         Json                  @db.Json
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  assessment_metadata Json                  @default("{}") @db.Json
+  users               users                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  learning_parameters learning_parameters[]
+
+  @@unique([user_id, version], map: "cp_user_version_idx")
+  @@index([created_at], map: "cp_created_at_idx")
+  @@index([user_id], map: "cp_user_id_idx")
+}
+
+model doubt_log {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  user_id     String    @db.VarChar(36)
+  session_id  String?   @db.VarChar(36)
+  skill_id    String    @db.VarChar(64)
+  phase       String?   @db.VarChar(64)
+  question    String
+  answer      String
+  chunks_used Int
+  confidence  String    @db.VarChar(16)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  sessions    sessions? @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model evidence {
+  id                String    @id @db.VarChar(36)
+  session_id        String    @db.VarChar(36)
+  checkpoint_id     String    @db.VarChar(64)
+  type              String    @db.VarChar(32)
+  payload           Json      @db.Json
+  artifact_url      String?
+  validated         Boolean   @default(false)
+  validation_result Json?     @db.Json
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  user_id           String    @db.VarChar(36)
+  artifact_key      String?
+  mime_type         String?   @db.VarChar(64)
+  file_size_bytes   BigInt?
+  validated_at      DateTime? @db.Timestamptz(6)
+  sessions          sessions  @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model jobs {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  status     String   @db.VarChar(32)
+  result     String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model learning_parameters {
+  id                                   String             @id @db.VarChar(36)
+  profile_id                           String             @db.VarChar(36)
+  skill_id                             String             @db.VarChar(64)
+  difficulty_slope                     Decimal            @db.Decimal(6, 5)
+  phase_pacing                         Decimal            @db.Decimal(6, 5)
+  entry_phase_offset                   Decimal            @db.Decimal(6, 5)
+  repetition_intensity                 Decimal            @db.Decimal(6, 5)
+  session_duration                     Decimal            @db.Decimal(6, 5)
+  micro_session_enabled                Int                @db.SmallInt
+  fatigue_threshold                    Decimal            @db.Decimal(6, 5)
+  break_frequency                      Decimal            @db.Decimal(6, 5)
+  technique_density                    Decimal            @db.Decimal(6, 5)
+  concurrent_technique_limit           Int                @db.SmallInt
+  abstraction_level                    Decimal            @db.Decimal(6, 5)
+  instruction_granularity              Decimal            @db.Decimal(6, 5)
+  checkpoint_frequency                 Decimal            @db.Decimal(6, 5)
+  checkpoint_rigidity                  Decimal            @db.Decimal(6, 5)
+  error_tolerance_threshold            Decimal            @db.Decimal(6, 5)
+  retry_limit                          Int                @db.SmallInt
+  drill_depth                          Decimal            @db.Decimal(6, 5)
+  variation_intensity                  Decimal            @db.Decimal(6, 5)
+  stress_exposure_rate                 Decimal            @db.Decimal(6, 5)
+  simulation_complexity                Decimal            @db.Decimal(6, 5)
+  feedback_detail_level                Decimal            @db.Decimal(6, 5)
+  correction_delay_window              Decimal            @db.Decimal(6, 5)
+  hint_activation_threshold            Decimal            @db.Decimal(6, 5)
+  precision_requirement                Decimal            @db.Decimal(6, 5)
+  speed_requirement                    Decimal            @db.Decimal(6, 5)
+  coordination_complexity              Decimal            @db.Decimal(6, 5)
+  adaptation_sensitivity               Decimal            @db.Decimal(6, 5)
+  risk_zone_trigger_level              Decimal            @db.Decimal(6, 5)
+  regression_policy_strength           Decimal            @db.Decimal(6, 5)
+  phase_transition_sensitivity         Decimal            @db.Decimal(6, 5)
+  complexity_escalation_trigger        Decimal            @db.Decimal(6, 5)
+  plateau_detection_threshold          Decimal            @db.Decimal(6, 5)
+  stability_requirement_before_advance Decimal            @db.Decimal(6, 5)
+  created_at                           DateTime           @default(now()) @db.Timestamptz(6)
+  cognitive_profiles                   cognitive_profiles @relation(fields: [profile_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roadmaps                             roadmaps[]
+
+  @@unique([profile_id, skill_id], map: "lp_profile_skill_idx")
+  @@index([profile_id], map: "lp_profile_id_idx")
+}
+
+model rag_chunks {
+  id           String                @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  skill_id     String                @db.VarChar(64)
+  phase        String?               @db.VarChar(64)
+  technique_id String?               @db.VarChar(64)
+  doc_type     String                @db.VarChar(32)
+  source_url   String?
+  chunk_index  Int
+  content      String
+  embedding    Unsupported("vector")
+  model_name   String                @db.VarChar(64)
+  token_count  Int
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+
+  @@unique([skill_id, source_url, chunk_index], map: "uq_rag_chunks_skill_source_chunk")
+}
+
+model rag_config {
+  id              Int       @id @default(1)
+  model_name      String    @db.VarChar(64)
+  model_version   String    @db.VarChar(32)
+  dimension       Int
+  chunk_size      Int       @default(512)
+  chunk_overlap   Int       @default(64)
+  last_indexed_at DateTime? @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model refresh_tokens {
+  id         String    @id @db.VarChar(36)
+  user_id    String    @db.VarChar(36)
+  token_hash String
+  jti        String    @unique @db.VarChar(36)
+  issued_at  DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at DateTime  @db.Timestamptz(6)
+  revoked_at DateTime? @db.Timestamptz(6)
+  ip_address String?   @db.Inet
+  user_agent String?
+  users      users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([expires_at], map: "rt_expires_idx")
+  @@index([jti], map: "rt_jti_idx")
+  @@index([token_hash], map: "rt_token_hash_idx")
+  @@index([user_id], map: "rt_user_id_idx")
+}
+
+model revoked_access_tokens {
+  jti        String   @id @db.VarChar(36)
+  user_id    String   @db.VarChar(36)
+  revoked_at DateTime @default(now()) @db.Timestamptz(6)
+  expires_at DateTime @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([expires_at], map: "revoked_access_expires_idx")
+  @@index([user_id], map: "revoked_access_user_idx")
+}
+
+model roadmaps {
+  id                  String              @id @db.VarChar(36)
+  user_id             String              @db.VarChar(36)
+  skill_id            String              @db.VarChar(64)
+  profile_version     Int
+  parameters_id       String              @db.VarChar(36)
+  structure           Json                @db.Json
+  status              String              @default("active") @db.VarChar(32)
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  template_version    Int
+  fingerprint         String              @db.VarChar(64)
+  completed_at        DateTime?           @db.Timestamptz(6)
+  checkpoint_states   checkpoint_states[]
+  learning_parameters learning_parameters @relation(fields: [parameters_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users               users               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sessions            sessions[]
+}
+
+model sessions {
+  id                       String      @id @db.VarChar(36)
+  roadmap_id               String      @db.VarChar(36)
+  phase                    String      @db.VarChar(64)
+  technique_id             String      @db.VarChar(64)
+  status                   String      @default("pending") @db.VarChar(32)
+  metrics_captured         Json        @db.Json
+  protocol_violations      Json        @db.Json
+  started_at               DateTime?   @default(now()) @db.Timestamptz(6)
+  ended_at                 DateTime?   @db.Timestamptz(6)
+  user_id                  String      @db.VarChar(36)
+  attempt_number           Int         @default(1)
+  protocol_steps_completed Json        @default("[]") @db.Json
+  failure_reason           String?     @db.VarChar(128)
+  created_at               DateTime    @default(now()) @db.Timestamptz(6)
+  doubt_log                doubt_log[]
+  evidence                 evidence[]
+  roadmaps                 roadmaps    @relation(fields: [roadmap_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                    users       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tip_log                  tip_log[]
+}
+
+model skill_research_objects {
+  id              String   @id @db.VarChar(36)
+  user_id         String   @db.VarChar(36)
+  skill_id        String   @db.VarChar(64)
+  profile_version Int
+  payload         Json
+  created_at      DateTime @default(dbgenerated("'2026-04-25 10:25:31.882209+00'::timestamp with time zone")) @db.Timestamptz(6)
+  users           users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([skill_id], map: "ix_skill_research_objects_skill_id")
+  @@index([user_id], map: "ix_skill_research_objects_user_id")
+}
+
+model skill_templates {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  skill_id         String   @db.VarChar(64)
+  version          Int      @default(1)
+  name             String   @db.VarChar(128)
+  domain           String   @db.VarChar(64)
+  complexity_score Decimal  @db.Decimal(4, 3)
+  structure        Json
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model tip_log {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.VarChar(36)
+  session_id     String   @db.VarChar(36)
+  user_id        String   @db.VarChar(36)
+  technique_id   String   @db.VarChar(64)
+  failure_type   String   @db.VarChar(64)
+  attempt_number Int
+  tip            String
+  severity       String   @db.VarChar(16)
+  target_step    String?  @db.VarChar(64)
+  chunks_used    Int
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  sessions       sessions @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id                     String                   @id @db.VarChar(36)
+  email                  String                   @unique(map: "users_email_idx") @db.VarChar(255)
+  password_hash          String                   @db.VarChar
+  status                 String                   @default("active") @db.VarChar(32)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  assessment_sessions    assessment_sessions[]
+  audit_log              audit_log[]
+  baseline_skill_states  baseline_skill_states[]
+  cognitive_profiles     cognitive_profiles[]
+  doubt_log              doubt_log[]
+  evidence               evidence[]
+  refresh_tokens         refresh_tokens[]
+  revoked_access_tokens  revoked_access_tokens[]
+  roadmaps               roadmaps[]
+  sessions               sessions[]
+  skill_research_objects skill_research_objects[]
+  tip_log                tip_log[]
+
+  @@index([status])
+}

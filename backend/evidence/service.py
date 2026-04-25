@@ -57,5 +57,5 @@ async def upload_evidence(
     return record
 
 
-async def list_evidence_for_session(db: AsyncSession, session_id: UUID):
-    return await EvidenceRepository.get_by_session(db, session_id)
+async def list_evidence_for_session(db: AsyncSession, session_id: UUID, user_id: UUID):
+    return await EvidenceRepository.get_by_session_and_user(db, session_id, user_id)

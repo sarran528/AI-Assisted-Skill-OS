@@ -1,5 +1,8 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from datetime import datetime
+from uuid import uuid4
+
+from sqlalchemy import String, Column, DateTime, ForeignKey, Index, Integer, JSON, Numeric, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 from backend.shared.db.base import Base
 
@@ -7,8 +10,17 @@ from backend.shared.db.base import Base
 class CognitiveProfile(Base):
     __tablename__ = "cognitive_profiles"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+        server_default=text("uuid_generate_v4()"),
+    )
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
     version = Column(Integer, nullable=False, server_default=text("1"))
     cognitive_capacity = Column(Numeric(6, 5), nullable=False)
     attention_stability = Column(Numeric(6, 5), nullable=False)
@@ -16,9 +28,9 @@ class CognitiveProfile(Base):
     motor_baseline = Column(Numeric(6, 5), nullable=False)
     stress_resilience = Column(Numeric(6, 5), nullable=False)
     time_constraint = Column(Numeric(6, 5), nullable=False)
-    raw_signals = Column(JSONB, nullable=False)
-    assessment_metadata = Column(JSONB, nullable=False, server_default=text("'{}'"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    raw_signals = Column(JSON, nullable=False)  # Use JSON instead of JSONB for SQLite compat
+    assessment_metadata = Column(JSON, nullable=False, server_default=text("'{}'"))  # Changed from JSONB
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
 
     __table_args__ = (
         UniqueConstraint("user_id", "version", name="cp_user_version_idx"),

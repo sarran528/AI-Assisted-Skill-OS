@@ -99,12 +99,15 @@ export function SupportPanel({
           <form
             className="support-form"
             onSubmit={handleSubmit((values) => {
+              if (!sessionId) {
+                return;
+              }
               doubtMutation.mutate(
                 {
-                  skill_id: skillId,
+                  session_id: sessionId,
                   phase,
                   technique_id: techniqueId,
-                  question: values.question,
+                  user_query: values.question,
                 },
                 {
                   onSuccess: () => reset(),
@@ -128,7 +131,7 @@ export function SupportPanel({
               type="submit"
               variant="primary"
               data-testid="ask-doubt-btn"
-              disabled={doubtMutation.isPending}
+              disabled={doubtMutation.isPending || !sessionId}
             >
               {doubtMutation.isPending ? "Asking..." : "Ask Doubt"}
             </BrutalButton>
@@ -138,8 +141,8 @@ export function SupportPanel({
           {doubtMutation.data ? (
             <BrutalCard accent="blue" className="support-answer" testId="doubt-answer-card">
               <strong>AI Answer</strong>
-              <p>{doubtMutation.data.answer}</p>
-              {doubtMutation.data.caveat ? <p className="small-copy">Caveat: {doubtMutation.data.caveat}</p> : null}
+              <p>{doubtMutation.data.explanation}</p>
+              <p className="small-copy">Sources used: {doubtMutation.data.sources_used}</p>
             </BrutalCard>
           ) : null}
         </BrutalCard>
@@ -164,13 +167,13 @@ export function SupportPanel({
           {resourcesQuery.isError ? <p className="error-text">Unable to load resources.</p> : null}
 
           <div className="resource-list" data-testid="resource-list">
-            {(resourcesQuery.data?.items ?? []).map((item) => (
-              <article className="resource-item" key={item.id}>
+            {(resourcesQuery.data?.resources ?? []).map((item) => (
+              <article className="resource-item" key={`${item.title}-${item.url ?? "local"}`}>
                 <div className="resource-item__meta">
                   <span>{item.doc_type}</span>
-                  <span>{Math.round(item.relevance * 100)}%</span>
+                  <span>{resourcesQuery.data?.phase}</span>
                 </div>
-                <p>{item.snippet}</p>
+                <p>{item.title}</p>
               </article>
             ))}
           </div>
@@ -181,11 +184,11 @@ export function SupportPanel({
         <BrutalCard accent="white" className="support-panel__section" testId="correction-tip-section">
           {tipQuery.isLoading ? <p>Checking for correction tip...</p> : null}
           {tipQuery.isError ? <p className="error-text">No correction tip available right now.</p> : null}
-          {tipQuery.data?.available ? (
+          {tipQuery.data ? (
             <TipCard
-              text={tipQuery.data.text ?? "Keep protocol strict and retry slowly."}
-              severity={tipQuery.data.severity}
-              focusStep={tipQuery.data.focus_step}
+              text={tipQuery.data.tip ?? "Keep protocol strict and retry slowly."}
+              severity={"medium"}
+              focusStep={tipQuery.data.trigger_reason}
               testId="tip-card"
             />
           ) : (

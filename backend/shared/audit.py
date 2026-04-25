@@ -21,13 +21,13 @@ async def log_audit_event(
 
     if user_id:
         try:
-            user_uuid = uuid.UUID(str(user_id))
+            user_uuid = str(uuid.UUID(str(user_id)))
         except ValueError:
             user_uuid = None
 
     if entity_id:
         try:
-            entity_uuid = uuid.UUID(str(entity_id))
+            entity_uuid = str(uuid.UUID(str(entity_id)))
         except ValueError:
             entity_uuid = None
 

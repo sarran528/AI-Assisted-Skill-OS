@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Optional
+
 from backend.shared.models import APIModel
 
 
@@ -9,6 +12,17 @@ class RegisterRequest(APIModel):
 class LoginRequest(APIModel):
     email: str
     password: str
+
+
+class UserResponse(APIModel):
+    id: str
+    email: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class RegisterResponse(APIModel):

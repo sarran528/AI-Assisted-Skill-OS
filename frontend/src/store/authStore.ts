@@ -4,21 +4,23 @@ import { persist } from "zustand/middleware";
 import type { AuthUser } from "../types";
 
 interface AuthStore {
-  accessToken: string | null;
+  token: string | null;
   user: AuthUser | null;
   setToken: (token: string) => void;
   setUser: (user: AuthUser | null) => void;
+  clearAuth: () => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
-      accessToken: null,
+      token: null,
       user: null,
-      setToken: (token) => set({ accessToken: token }),
+      setToken: (token) => set({ token }),
       setUser: (user) => set({ user }),
-      logout: () => set({ accessToken: null, user: null }),
+      clearAuth: () => set({ token: null, user: null }),
+      logout: () => set({ token: null, user: null }),
     }),
     {
       name: "skillos-auth",

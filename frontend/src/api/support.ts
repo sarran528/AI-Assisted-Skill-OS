@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import axiosClient from "./axiosClient";
 import type {
   DoubtAnswerResponse,
   SupportResourcesResponse,
@@ -6,27 +6,27 @@ import type {
 } from "../types";
 
 export async function askDoubt(payload: {
-  skill_id: string;
+  session_id: string;
   phase: string;
   technique_id: string;
-  question: string;
+  user_query: string;
 }): Promise<DoubtAnswerResponse> {
-  const response = await apiClient.post("/support/doubt/ask", payload);
+  const response = await axiosClient.post("/doubt/ask", payload);
   return response.data;
 }
 
 export async function fetchSupportResources(params: {
   skill_id: string;
   phase: string;
-  query?: string;
+  technique_id?: string;
 }): Promise<SupportResourcesResponse> {
-  const response = await apiClient.get("/support/resources", {
+  const response = await axiosClient.get("/resources", {
     params,
   });
   return response.data;
 }
 
 export async function fetchTip(sessionId: string): Promise<TipResponse> {
-  const response = await apiClient.get(`/tip/${sessionId}`);
+  const response = await axiosClient.get(`/tip/${sessionId}`);
   return response.data;
 }

@@ -7,7 +7,7 @@ from backend.shared.db.base import Base
 class SkillTemplate(Base):
     __tablename__ = "skill_templates"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    id = Column(String(36), primary_key=True, server_default=text("uuid_generate_v4()"))
     skill_id = Column(String(64), nullable=False)
     version = Column(Integer, nullable=False, server_default=text("1"))
     name = Column(String(128), nullable=False)

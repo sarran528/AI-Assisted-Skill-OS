@@ -1,5 +1,5 @@
 export interface AuthUser {
-  userId: string;
+  id: string;
   email: string;
 }
 
@@ -24,6 +24,7 @@ export interface AssessmentStartResponse {
 }
 
 export interface LevelSubmissionPayload {
+  session_id: string;
   level: number;
   metrics: {
     accuracy: number;
@@ -66,11 +67,30 @@ export interface SessionStartResponse {
   status: string;
 }
 
+export interface Session {
+  session_id: string;
+  status: string;
+  phase: string;
+  technique_id: string;
+  attempt_number: number;
+  started_at?: string;
+  ended_at?: string;
+}
+
+export interface SessionListItem {
+  session_id: string;
+  status: string;
+  phase: string;
+  score: number | null;
+  created_at?: string;
+}
+
 export interface SessionCompleteResponse {
   session_id: string;
+  status?: string;
   passed: boolean;
   tip_pending?: boolean;
-  completed_steps: string[];
+  tip_poll_url?: string;
   failure_reason?: string;
 }
 
@@ -100,26 +120,24 @@ export interface CheckpointValidationResponse {
 }
 
 export interface DoubtAnswerResponse {
-  answer: string;
-  confidence: "low" | "medium" | "high";
-  caveat?: string;
-  sources_used?: number;
+  explanation: string;
+  sources_used: number;
 }
 
 export interface SupportResourceItem {
-  id: string;
+  title: string;
+  url: string;
   doc_type: string;
-  snippet: string;
-  relevance: number;
 }
 
 export interface SupportResourcesResponse {
-  items: SupportResourceItem[];
+  skill_id: string;
+  phase: string;
+  resources: SupportResourceItem[];
+  query_used: string;
 }
 
 export interface TipResponse {
-  available: boolean;
-  severity?: "minor" | "moderate" | "critical";
-  text?: string;
-  focus_step?: string;
+  tip: string;
+  trigger_reason: string;
 }

@@ -11,7 +11,15 @@ import { useAuthStore } from "../store/authStore";
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters long")
+    .max(72, "Password cannot exceed 72 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/\d/, "Password must contain at least one digit")
+    .regex(/[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/\?]/, "Password must contain at least one special character")
+    .refine((password) => !['password', '12345678', 'qwerty123', 'admin123'].includes(password.toLowerCase()), 
+            "Password is too common and easily guessable"),
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -31,7 +39,7 @@ export function RegisterView() {
     onSuccess: (data: any) => {
       const token = data.accessToken || data.access_token;
       setToken(token);
-      setUser({ userId: data.userId || data.user_id || "new-user", email: data.email ?? "" });
+      setUser({ id: data.user_id, email: data.email ?? "" });
       navigate("/dashboard");
     },
   });
@@ -50,11 +58,12 @@ export function RegisterView() {
             data-testid="password"
             className="brutal-input"
             type="password"
+            maxLength={72}
             {...register("password")}
           />
 
           {formState.errors.email && <p className="error-text">Valid email is required.</p>}
-          {formState.errors.password && <p className="error-text">Password must be at least 8 chars.</p>}
+          {formState.errors.password && <p className="error-text">{formState.errors.password.message}</p>}
           {registerMutation.isError && <p className="error-text">Registration failed.</p>}
 
           <BrutalButton data-testid="register-btn" type="submit" variant="primary" disabled={registerMutation.isPending}>

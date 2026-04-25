@@ -11,7 +11,7 @@ class RagChunk(Base):
         UniqueConstraint("skill_id", "source_url", "chunk_index", name="uq_rag_chunks_skill_source_chunk"),
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    id = Column(String(36), primary_key=True, server_default=text("uuid_generate_v4()"))
     skill_id = Column(String(64), nullable=False)
     phase = Column(String(64), nullable=True)
     technique_id = Column(String(64), nullable=True)

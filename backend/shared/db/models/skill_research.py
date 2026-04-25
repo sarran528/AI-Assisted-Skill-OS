@@ -14,11 +14,11 @@ class SkillResearchObjectModel(Base):
 
     __tablename__ = "skill_research_objects"
 
-    id: Mapped[UUID] = mapped_column(
-        SQLALCHEMY_UUID(as_uuid=True), primary_key=True, default=uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
-    user_id: Mapped[UUID] = mapped_column(
-        SQLALCHEMY_UUID(as_uuid=True),
+    user_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

@@ -16,15 +16,14 @@ from backend.shared.config import settings
 logger = logging.getLogger(__name__)
 PHASE_CACHE_TTL_SECONDS = 60 * 60
 QUERY_CACHE_TTL_SECONDS = 30 * 60
+_redis_client: Redis | None = None
 
 
 @dataclass(slots=True)
 class ResourceItem:
     title: str
-    content: str
+    url: str | None
     doc_type: str
-    phase: str | None
-    relevance_score: float
 
 
 @dataclass(slots=True)
@@ -84,12 +83,14 @@ async def get_resources(
 ) -> ResourceResponse:
     del current_user  # resources are auth-gated by router dependency
 
-    redis = Redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = Redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+    redis = _redis_client
     key = _cache_key(skill_id, phase, user_query)
 
     cached = await _read_cached_response(redis, key)
     if cached is not None:
-        await redis.aclose()
         return cached
 
     retrieval_query = build_resource_query(skill_id, phase, user_query)
@@ -107,10 +108,8 @@ async def get_resources(
         resources=[
             ResourceItem(
                 title=_derive_title(chunk),
-                content=chunk.content,
+                url=chunk.source_url,
                 doc_type=chunk.doc_type,
-                phase=chunk.phase,
-                relevance_score=chunk.similarity_score,
             )
             for chunk in chunks
         ],
@@ -119,5 +118,4 @@ async def get_resources(
 
     ttl = QUERY_CACHE_TTL_SECONDS if user_query else PHASE_CACHE_TTL_SECONDS
     await _write_cached_response(redis, key, response, ttl=ttl)
-    await redis.aclose()
     return response

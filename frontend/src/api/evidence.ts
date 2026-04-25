@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import axiosClient from "./axiosClient";
 import type { EvidenceUploadResponse } from "../types";
 
 export async function uploadEvidence(payload: {
@@ -13,7 +13,7 @@ export async function uploadEvidence(payload: {
   formData.append("evidence_type", payload.evidenceType ?? "artifact");
   formData.append("file", payload.file);
 
-  const response = await apiClient.post("/evidence/upload", formData, {
+  const response = await axiosClient.post("/evidence/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return response.data;

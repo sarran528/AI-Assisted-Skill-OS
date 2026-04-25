@@ -31,6 +31,7 @@ class RetrievedChunk:
     phase: str | None
     technique_id: str | None
     doc_type: str
+    source_url: str | None
     content: str
     similarity_score: float
 
@@ -62,7 +63,7 @@ async def retrieve(db: AsyncSession, query: RetrievalQuery) -> list[RetrievedChu
 
     sql = text(
         "SELECT "
-        "id, skill_id, phase, technique_id, doc_type, content, "
+        "id, skill_id, phase, technique_id, doc_type, source_url, content, "
         "1 - (embedding <=> CAST(:query_embedding AS vector)) AS similarity_score "
         "FROM rag_chunks "
         f"WHERE {' AND '.join(sql_filters)} "
@@ -79,6 +80,7 @@ async def retrieve(db: AsyncSession, query: RetrievalQuery) -> list[RetrievedChu
             phase=row.phase,
             technique_id=row.technique_id,
             doc_type=row.doc_type,
+            source_url=row.source_url,
             content=row.content,
             similarity_score=float(row.similarity_score),
         )

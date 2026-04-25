@@ -11,15 +11,14 @@ from backend.shared.models import APIModel
 class ResourceRequest(APIModel):
     skill_id: str
     phase: str
+    technique_id: str | None = None
     user_query: str | None = None
 
 
 class ResourceItemModel(APIModel):
     title: str
-    content: str
+    url: str | None = None
     doc_type: str
-    phase: str | None
-    relevance_score: float
 
 
 class ResourceResponseModel(APIModel):
@@ -31,26 +30,19 @@ class ResourceResponseModel(APIModel):
 
 class DoubtAskRequest(APIModel):
     session_id: UUID | None = None
-    user_question: str = Field(min_length=10, max_length=500)
+    phase: str | None = None
+    technique_id: str | None = None
+    user_query: str = Field(min_length=10, max_length=500)
 
 
 class DoubtResponseModel(APIModel):
-    question: str
-    answer: str
-    confidence: str
-    caveat: str | None
-    chunks_used: int
-    session_context: dict[str, str | None]
+    explanation: str
+    sources_used: int
 
 
 class TipResponseModel(APIModel):
-    session_id: UUID
-    technique_id: str
     tip: str
-    severity: str
-    target_step: str | None
-    failure_type: str
-    generated_at: datetime
+    trigger_reason: str
 
 
 class TipPendingResponse(APIModel):

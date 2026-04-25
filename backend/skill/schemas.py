@@ -52,3 +52,19 @@ class SkillListResponse(BaseModel):
     version: int
 
     model_config = {"from_attributes": True}
+
+
+class SkillTemplateBuildRequest(BaseModel):
+    """Request model for pipeline-driven template generation."""
+
+    skill_name: str = Field(..., min_length=2, max_length=128)
+    domain: str = Field(default="other", max_length=64)
+    complexity_score: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class SkillTemplateBuildResponse(BaseModel):
+    """Response model for generated template metadata."""
+
+    skill_id: str
+    version: str
+    created: bool

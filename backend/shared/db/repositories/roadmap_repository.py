@@ -48,6 +48,18 @@ class RoadmapRepository:
         return result.scalars().first()
 
     @staticmethod
+    async def get_active_for_user(session: AsyncSession, user_id: UUID) -> Roadmap | None:
+        stmt = (
+            select(Roadmap)
+            .where(Roadmap.user_id == user_id)
+            .where(Roadmap.status == "active")
+            .order_by(Roadmap.created_at.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().first()
+
+    @staticmethod
     async def get_by_id(session: AsyncSession, roadmap_id: UUID) -> Roadmap | None:
         return await session.get(Roadmap, roadmap_id)
 

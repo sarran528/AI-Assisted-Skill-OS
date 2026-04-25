@@ -25,6 +25,15 @@ class EvidenceRepository:
         return list(result.scalars().all())
 
     @staticmethod
+    async def get_by_session_and_user(session: AsyncSession, session_id: UUID, user_id: UUID) -> list[Evidence]:
+        result = await session.execute(
+            select(Evidence)
+            .where(Evidence.session_id == session_id)
+            .where(Evidence.user_id == user_id)
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def get_by_checkpoint(
         session: AsyncSession,
         session_id: UUID,

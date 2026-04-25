@@ -1,0 +1,131 @@
+/* Neo-Brutalist Assessment Game Suite Styling */
+
+.neo-brutalist {
+  --black: #0a0a0a;
+  --white: #f5f0e8;
+  --yellow: #FFE500;
+  --red: #FF2D2D;
+  --green: #00C851;
+  --blue: #0057FF;
+
+  font-family: 'Courier New', monospace;
+  background: var(--white);
+  color: var(--black);
+}
+
+.neo-brutalist * {
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.neo-brutalist-border {
+  border: 3px solid var(--black);
+  box-shadow: 5px 5px 0px var(--black);
+  border-radius: 0 !important;
+}
+
+.neo-brutalist-button {
+  background: var(--white);
+  border: 3px solid var(--black);
+  box-shadow: 5px 5px 0px var(--black);
+  border-radius: 0;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.neo-brutalist-button:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0px var(--black);
+}
+
+.neo-brutalist-button:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+.neo-brutalist-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.neo-brutalist-button--primary {
+  background: var(--yellow);
+}
+
+.neo-brutalist-button--danger {
+  background: var(--red);
+  color: var(--white);
+}
+
+.neo-brutalist-button--success {
+  background: var(--green);
+  color: var(--white);
+}
+
+.neo-brutalist-button--blue {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.neo-brutalist-card {
+  background: var(--white);
+  border: 3px solid var(--black);
+  box-shadow: 5px 5px 0px var(--black);
+  border-radius: 0;
+  padding: 24px;
+}
+
+.neo-brutalist-layout {
+  min-height: 100vh;
+  padding: 32px;
+  background: var(--white);
+}
+
+.neo-brutalist-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 3px solid var(--black);
+  box-shadow: 5px 5px 0px var(--black);
+  padding: 16px 24px;
+  margin-bottom: 32px;
+  background: var(--white);
+}
+
+.neo-brutalist-hud-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.neo-brutalist-title {
+  font-size: 24px;
+  margin: 0;
+}
+
+.neo-brutalist-tag {
+  background: var(--yellow);
+  padding: 4px 8px;
+  border: 2px solid var(--black);
+  font-size: 14px;
+}
+
+.neo-brutalist-status-badge {
+  display: inline-flex;
+  border: 2px solid var(--black);
+  padding: 4px 8px;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 2px 2px 0 var(--black);
+}
+
+.neo-brutalist-status-badge--grey { background: #d0d0d0; }
+.neo-brutalist-status-badge--yellow { background: var(--yellow); }
+.neo-brutalist-status-badge--orange { background: #ffaa00; }
+.neo-brutalist-status-badge--green { background: var(--green); color: var(--white); }

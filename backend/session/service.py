@@ -11,6 +11,7 @@ from backend.session.execution import SessionResult, should_generate_tip
 from backend.session.schemas import SessionCompleteResponse
 from backend.shared.db.models import LearningParameter, Roadmap, Session
 from backend.shared.queue.tasks import generate_tip_task
+from backend.validation.validators import validate_behavioral_log
 
 
 async def start_session(
@@ -39,8 +40,10 @@ async def start_session(
     return model
 
 
-async def submit_metrics(db: AsyncSession, session_id: UUID, metrics_payload: dict) -> Session:
-    session = await db.scalar(select(Session).where(Session.id == session_id))
+async def submit_metrics(db: AsyncSession, session_id: UUID, user_id: UUID, metrics_payload: dict) -> Session:
+    session = await db.scalar(
+        select(Session).where(Session.id == session_id).where(Session.user_id == user_id)
+    )
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -55,9 +58,12 @@ async def submit_metrics(db: AsyncSession, session_id: UUID, metrics_payload: di
 async def complete_session(
     db: AsyncSession,
     session_id: UUID,
+    user_id: UUID,
     completed_steps: list[str],
 ) -> SessionCompleteResponse:
-    session = await db.scalar(select(Session).where(Session.id == session_id))
+    session = await db.scalar(
+        select(Session).where(Session.id == session_id).where(Session.user_id == user_id)
+    )
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -70,8 +76,32 @@ async def complete_session(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Learning parameters not found")
 
     metrics = session.metrics_captured or {}
-    passed = bool(metrics.get("passed", False))
-    failure_reason = str(metrics.get("failure_reason") or session.failure_reason or "metric_threshold")
+
+    protocol_steps = []
+    phase_payload = (roadmap.structure or {}).get("phases", {}).get(session.phase, {})
+    for technique in phase_payload.get("techniques", []) if isinstance(phase_payload, dict) else []:
+        if technique.get("technique_id") == session.technique_id:
+            protocol_steps = list(technique.get("protocol_steps") or [])
+            break
+
+    retry_count = metrics.get("retry_count", metrics.get("retry", 0))
+    protocol_result = validate_behavioral_log(
+        {
+            "steps_completed": completed_steps,
+            "retry_count": retry_count,
+            "retry_limit": int(params.retry_limit),
+        },
+        required_steps=protocol_steps,
+    )
+
+    metrics_passed = bool(metrics.get("passed", False))
+    if "accuracy" in metrics:
+        metrics_passed = float(metrics.get("accuracy", 0.0) or 0.0) >= float(params.error_tolerance_threshold)
+    passed = metrics_passed and protocol_result.passed
+    if not protocol_result.passed:
+        failure_reason = "protocol_violation"
+    else:
+        failure_reason = str(metrics.get("failure_reason") or session.failure_reason or "metric_threshold")
 
     result = SessionResult(
         passed=passed,
@@ -79,7 +109,8 @@ async def complete_session(
     )
 
     session.protocol_steps_completed = completed_steps
-    session.status = "completed"
+    session.protocol_violations = [] if protocol_result.passed else [protocol_result.reason]
+    session.status = "failed" if session.protocol_violations or not passed else "completed"
     session.failure_reason = None if passed else failure_reason
     session.ended_at = datetime.now(timezone.utc)
 
@@ -103,9 +134,22 @@ async def complete_session(
         passed=passed,
         failure_reason=session.failure_reason,
         tip_pending=tip_pending,
-        tip_poll_url=f"/support/tip/{session.id}" if tip_pending else None,
+        tip_poll_url=f"/tip/{session.id}" if tip_pending else None,
     )
 
 
-async def get_session_status(db: AsyncSession, session_id: UUID) -> Session | None:
-    return await db.scalar(select(Session).where(Session.id == session_id))
+async def get_session_status(db: AsyncSession, session_id: UUID, user_id: UUID) -> Session | None:
+    return await db.scalar(
+        select(Session).where(Session.id == session_id).where(Session.user_id == user_id)
+    )
+
+
+async def list_recent_sessions(db: AsyncSession, user_id: UUID, limit: int = 5) -> list[Session]:
+    stmt = (
+        select(Session)
+        .where(Session.user_id == user_id)
+        .order_by(Session.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())

@@ -12,6 +12,7 @@ from tenacity import (
 import anthropic
 
 from backend.shared.config import settings
+from backend.shared.errors import SystemError
 from backend.shared.llm.client import get_anthropic_client
 
 logger = logging.getLogger(__name__)
@@ -47,8 +48,7 @@ async def llm_call(
     Raises:
         SystemError: If API calls fail at network/service level after retries
     """
-    # Force temperature to 0.0 - enforce constraint at gateway level
-    temperature = 0.0
+    # Use the passed temperature (default 0.0 for structured, 0.2 for RAG).
 
     client = get_anthropic_client()
 

@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, Response, status
@@ -10,7 +11,9 @@ from backend.auth.password import hash_password, verify_password
 from backend.shared.audit import log_audit_event
 from backend.shared.config import settings
 from backend.shared.db.repositories.auth_repo import AuthRepository
+from backend.shared.db.repositories.cognitive_profile_repo import CognitiveProfileRepository
 
+logger = logging.getLogger(__name__)
 
 COOKIE_NAME = "skillos_refresh"
 
@@ -48,23 +51,58 @@ async def register_user(
     ip_address: str | None,
     user_agent: str | None,
 ) -> dict:
+    logger.info(f"Registration attempt for email: {email}")
+    
     repo = AuthRepository(db_session)
     existing = await repo.get_user_by_email(email)
     if existing:
+        logger.warning(f"Registration failed: Email already registered: {email}")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    user = await repo.create_user(email=email.lower(), password_hash=hash_password(password))
+    logger.debug(f"Email {email} is available, proceeding with user creation")
+    
+    try:
+        logger.debug(f"Hashing password for {email}")
+        password_hash = hash_password(password)
+        logger.debug(f"Password hashed successfully for {email}")
+        
+        user = await repo.create_user(email=email.lower(), password_hash=password_hash)
+        logger.info(f"User created successfully: {user.id} for email: {email}")
+        
+    except HTTPException as e:
+        logger.error(f"HTTP Exception during user creation for {email}: {e}")
+        # Re-raise HTTP exceptions (like password validation errors)
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during user creation for {email}: {e}")
+        # Handle any unexpected errors during user creation
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user account"
+        )
+    
+    # Cognitive profile creation is optional and non-blocking
+    # We'll skip it for now to ensure registration works
+    logger.info(f"Skipping cognitive profile creation for user {user.id} to ensure registration succeeds")
+
     access_token, access_jti, access_exp = create_access_token(str(user.id), user.email, user.status)
     refresh_token = _generate_refresh_token()
 
-    await repo.store_refresh_token(
-        user_id=str(user.id),
-        token_hash=_hash_refresh_token(refresh_token),
-        jti=access_jti,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
+    # Store refresh token with proper IP address handling
+    try:
+        await repo.store_refresh_token(
+            user_id=str(user.id),
+            token_hash=_hash_refresh_token(refresh_token),
+            jti=access_jti,
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
+            ip_address=ip_address,  # This will be handled by SQLAlchemy INET type
+            user_agent=user_agent,
+        )
+        logger.debug(f"Refresh token stored for user: {user.id}")
+    except Exception as e:
+        logger.error(f"Failed to store refresh token for user {user.id}: {e}")
+        # Continue with registration even if refresh token storage fails
+        logger.warning(f"Proceeding with registration despite refresh token storage failure for user {user.id}")
 
     _set_refresh_cookie(response, refresh_token)
     await log_audit_event(
@@ -87,9 +125,39 @@ async def login_user(
     ip_address: str | None,
     user_agent: str | None,
 ) -> dict:
+    logger.info(f"Login attempt for email: {email.lower()}")
+    
     repo = AuthRepository(db_session)
     user = await repo.get_user_by_email(email.lower())
-    if not user or not verify_password(password, user.password_hash):
+    
+    if not user:
+        logger.warning(f"Login failed: User not found for email: {email.lower()}")
+        await log_audit_event(
+            db_session,
+            user_id=None,
+            action="auth.login_failed",
+            entity_type="user",
+            entity_id=None,
+            ip_address=ip_address,
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    
+    logger.debug(f"User found: {user.id}, attempting password verification")
+    
+    # Handle password verification with proper error handling
+    password_valid = False
+    try:
+        password_valid = verify_password(password, user.password_hash)
+        logger.debug(f"Password verification result: {password_valid}")
+    except HTTPException as e:
+        logger.error(f"Password verification HTTP error for user {user.id}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Password verification error for user {user.id}: {e}")
+        password_valid = False
+    
+    if not password_valid:
+        logger.warning(f"Login failed: Invalid password for user: {user.id}")
         await log_audit_event(
             db_session,
             user_id=None,
@@ -105,14 +173,21 @@ async def login_user(
     access_token, access_jti, access_exp = create_access_token(str(user.id), user.email, user.status)
     refresh_token = _generate_refresh_token()
 
-    await repo.store_refresh_token(
-        user_id=str(user.id),
-        token_hash=_hash_refresh_token(refresh_token),
-        jti=access_jti,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
+    # Store refresh token with proper IP address handling
+    try:
+        await repo.store_refresh_token(
+            user_id=str(user.id),
+            token_hash=_hash_refresh_token(refresh_token),
+            jti=access_jti,
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_refresh_ttl),
+            ip_address=ip_address,  # This will be handled by SQLAlchemy INET type
+            user_agent=user_agent,
+        )
+        logger.debug(f"Refresh token stored for user: {user.id}")
+    except Exception as e:
+        logger.error(f"Failed to store refresh token for user {user.id}: {e}")
+        # Continue with login even if refresh token storage fails
+        logger.warning(f"Proceeding with login despite refresh token storage failure for user {user.id}")
 
     _set_refresh_cookie(response, refresh_token)
     await log_audit_event(

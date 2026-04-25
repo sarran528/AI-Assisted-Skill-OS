@@ -10,6 +10,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from backend.api.router import api_router
+from backend.user.router import router as user_router
 from backend.shared.config import settings
 from backend.shared.errors import BusinessError, SystemError
 from backend.auth.middleware import auth_context_middleware
@@ -29,7 +30,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_allowed_origins.split(","),
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
         allow_credentials=True,
     )
 
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
         return {"keys": []}
 
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(user_router, prefix="/api/v1")
     return app
 
 

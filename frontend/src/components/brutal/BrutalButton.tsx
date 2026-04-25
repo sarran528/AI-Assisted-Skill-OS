@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 interface BrutalButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "mono";
 }
 
 export function BrutalButton({

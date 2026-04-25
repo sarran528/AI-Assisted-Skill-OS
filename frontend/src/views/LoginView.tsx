@@ -8,10 +8,19 @@ import { loginUser } from "../api/auth";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useAuthStore } from "../store/authStore";
+import axiosClient from "../api/axiosClient";
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters long")
+    .max(72, "Password cannot exceed 72 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/\d/, "Password must contain at least one digit")
+    .regex(/[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/\?]/, "Password must contain at least one special character")
+    .refine((password) => !['password', '12345678', 'qwerty123', 'admin123'].includes(password.toLowerCase()), 
+            "Password is too common and easily guessable"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -19,6 +28,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 export function LoginView() {
   const navigate = useNavigate();
   const setToken = useAuthStore((state) => state.setToken);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const { register, handleSubmit, formState } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -30,7 +40,20 @@ export function LoginView() {
     onSuccess: (data: any) => {
       const token = data.accessToken || data.access_token;
       setToken(token);
-      navigate("/dashboard");
+      
+      // Make authenticated request with explicit token
+      axiosClient
+        .get("/users/me", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        .then((res) => setUser({ id: res.data.id, email: res.data.email }))
+        .catch((error) => {
+          console.error("Failed to fetch user data:", error);
+          setUser(null);
+        })
+        .finally(() => navigate("/dashboard"));
     },
   });
 
@@ -48,6 +71,7 @@ export function LoginView() {
             data-testid="password"
             className="brutal-input"
             type="password"
+            maxLength={72}
             {...register("password")}
           />
 

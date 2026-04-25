@@ -1,5 +1,7 @@
+from datetime import datetime
+from uuid import uuid4
+
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import UUID
 
 from backend.shared.db.base import Base
 
@@ -7,8 +9,13 @@ from backend.shared.db.base import Base
 class LearningParameter(Base):
     __tablename__ = "learning_parameters"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    profile_id = Column(UUID(as_uuid=True), ForeignKey("cognitive_profiles.id"), nullable=False)
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+        server_default=text("uuid_generate_v4()"),
+    )
+    profile_id = Column(String(36), ForeignKey("cognitive_profiles.id"), nullable=False)
     skill_id = Column(String(64), nullable=False)
 
     difficulty_slope = Column(Numeric(6, 5), nullable=False)

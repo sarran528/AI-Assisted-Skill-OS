@@ -45,6 +45,21 @@ class GroundingProbeResponses(BaseModel):
     confidence: ConfidenceProbeResponse | None = Field(None, description="Confidence probe response")
 
 
+class GroundingProbeSubmit(BaseModel):
+    skill_id: str
+    recognition_score: float = Field(..., ge=0.0, le=1.0)
+    declarative_score: float = Field(..., ge=0.0, le=1.0)
+    confidence_bias: float = Field(..., ge=0.0, le=5.0)
+
+
+class BaselineStateResponse(BaseModel):
+    skill_id: str
+    exposure_score: float
+    declarative_knowledge: float
+    confidence_bias: float
+    adjusted_repetition_intensity: float
+
+
 class BaselineSkillStateResponse(BaseModel):
     """API response for baseline skill state."""
     

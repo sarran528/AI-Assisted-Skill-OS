@@ -1,341 +1,111 @@
-import { Heart } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
-import { MetricBar } from "../components/brutal/MetricBar";
-import { useCompleteAssessment, useStartAssessment, useSubmitLevel } from "../hooks/useAssessment";
+import { useNavigationStore } from "../store/navigationStore";
+import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
 
-interface LevelState {
-  completed: boolean;
-  accuracyRecord: boolean[];
-  responseTimings: number[];
-}
-
-const QUESTION_COUNT = 10;
-const LEVELS = [1, 2, 3, 4, 5, 6];
-const LEVEL_TIME_SECONDS = 300;
-
-function computeLevelMetrics(levelState: LevelState) {
-  const timings = levelState.responseTimings;
-  const mean = timings.length > 0 ? timings.reduce((a, b) => a + b, 0) / timings.length : 0;
-  const variance =
-    timings.length > 0
-      ? timings.map((t) => (t - mean) ** 2).reduce((a, b) => a + b, 0) / timings.length
-      : 0;
-
-  const firstHalf = levelState.accuracyRecord.slice(0, 5);
-  const secondHalf = levelState.accuracyRecord.slice(5, 10);
-  const firstAcc = firstHalf.length > 0 ? firstHalf.filter(Boolean).length / firstHalf.length : 0;
-  const secondAcc = secondHalf.length > 0 ? secondHalf.filter(Boolean).length / secondHalf.length : 0;
-
-  return {
-    accuracy: levelState.accuracyRecord.filter(Boolean).length / Math.max(1, levelState.accuracyRecord.length),
-    mean_response_time: mean,
-    response_time_variance: variance,
-    performance_decay: Math.max(0, firstAcc - secondAcc),
-  };
-}
-
-function formatTimer(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${minutes}:${String(remainder).padStart(2, "0")}`;
-}
+const LEVELS = [
+  { id: 1, name: "Stroop Test", tag: "Executive Control", description: "Measures inhibition and impulse control." },
+  { id: 2, name: "Flanker Test", tag: "Sustained Attention", description: "Tracks focus consistency over repeated tasks." },
+  { id: 3, name: "Puzzle Game", tag: "Working Memory", description: "Measures temporary information retention." },
+  { id: 4, name: "Dart Game", tag: "Motor Baseline", description: "Checks motor speed and rhythm stability." },
+  { id: 5, name: "Pressure Test", tag: "Stress Resilience", description: "Evaluates stability under pressure." },
+  { id: 6, name: "Time Questions", tag: "Time Constraint", description: "Measures decision quality under time limits." },
+];
 
 export function AssessmentView() {
   const navigate = useNavigate();
+  const { games, allLevelsComplete } = useAssessmentStore();
+  const { setProfileState, setSystemState } = useNavigationStore();
 
-  const [currentLevel, setCurrentLevel] = useState(1);
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [livesRemaining, setLivesRemaining] = useState(3);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState(LEVEL_TIME_SECONDS);
-  const [questionStartTs, setQuestionStartTs] = useState<number>(Date.now());
-  const [sessionId, setSessionId] = useState<string>("assessment-session-local");
-  const [lifeLossFlash, setLifeLossFlash] = useState(false);
+  const completedCount = GAME_IDS.filter(id => games[id].completed).length;
+  const canComputeProfile = allLevelsComplete();
 
-  const [levels, setLevels] = useState<Record<number, LevelState>>(() =>
-    Object.fromEntries(
-      LEVELS.map((level) => [
-        level,
-        {
-          completed: false,
-          accuracyRecord: [],
-          responseTimings: [],
-        },
-      ])
-    ) as Record<number, LevelState>
-  );
+  const getStatusBadge = (attempts: number) => {
+    if (attempts === 0) return { label: "NOT ATTEMPTED", class: "neo-brutalist-status-badge--grey" };
+    if (attempts === 1) return { label: "TRIED ONCE", class: "neo-brutalist-status-badge--yellow" };
+    if (attempts === 2) return { label: "TRIED TWICE", class: "neo-brutalist-status-badge--orange" };
+    if (attempts === 3) return { label: "TRIED THRICE", class: "neo-brutalist-status-badge--green" };
+    return { label: `TRIED ${attempts} TIMES`, class: "neo-brutalist-status-badge--green" };
+  };
 
-  const startMutation = useStartAssessment();
-  const submitLevelMutation = useSubmitLevel();
-  const completeMutation = useCompleteAssessment();
-
-  useEffect(() => {
-    startMutation.mutate(undefined, {
-      onSuccess: (data) => {
-        setSessionId(data.session_id || "assessment-session-local");
+  const handleComputeProfile = () => {
+    // This triggers the pipeline normalization. 
+    // For now, we set a placeholder profile as per previous logic, 
+    // but in a real app this would call the backend with the collected signals.
+    setProfileState({
+      isActive: true,
+      dimensions: {
+        cognitive_capacity: 0.74,
+        attention_stability: 0.61,
+        learning_tolerance: 0.58,
+        motor_baseline: 0.69,
+        stress_resilience: 0.72,
+        time_constraint: 0.45,
       },
     });
-    // Intentionally run once at mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setTimeLeftSeconds((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (timeLeftSeconds > 0 || levels[currentLevel].completed) {
-      return;
-    }
-
-    setLifeLossFlash(true);
-    window.setTimeout(() => setLifeLossFlash(false), 450);
-
-    setLivesRemaining((value) => {
-      const next = Math.max(0, value - 1);
-      if (next === 0) {
-        window.setTimeout(() => handleLevelComplete(currentLevel), 0);
-      }
-      return next;
-    });
-
-    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
-    setCurrentQuestion(1);
-    setQuestionStartTs(Date.now());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeftSeconds, currentLevel, levels]);
-
-  const completedLevels = useMemo(
-    () => Object.entries(levels).filter(([, state]) => state.completed).map(([level]) => Number(level)),
-    [levels]
-  );
-
-  function selectLevel(level: number) {
-    setCurrentLevel(level);
-    setCurrentQuestion(1);
-    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
-    setLivesRemaining(3);
-    setQuestionStartTs(Date.now());
-  }
-
-  function handleAnswerSubmission(isCorrect: boolean) {
-    const now = Date.now();
-    const responseTime = now - questionStartTs;
-
-    setLevels((previous) => {
-      const levelState = previous[currentLevel];
-      const nextLevelState: LevelState = {
-        ...levelState,
-        accuracyRecord: [...levelState.accuracyRecord, isCorrect],
-        responseTimings: [...levelState.responseTimings, responseTime],
-      };
-      return {
-        ...previous,
-        [currentLevel]: nextLevelState,
-      };
-    });
-
-    if (!isCorrect) {
-      setLifeLossFlash(true);
-      window.setTimeout(() => setLifeLossFlash(false), 450);
-      setLivesRemaining((value) => Math.max(0, value - 1));
-    }
-
-    if (currentQuestion >= QUESTION_COUNT) {
-      handleLevelComplete();
-      return;
-    }
-
-    setCurrentQuestion((value) => value + 1);
-    setQuestionStartTs(Date.now());
-  }
-
-  function handleLevelComplete(level = currentLevel) {
-    const levelState = levels[level];
-    const metrics = computeLevelMetrics(levelState);
-
-    submitLevelMutation.mutate({
-      level,
-      metrics: {
-        accuracy: Math.round(metrics.accuracy * 100),
-        expected_time: Math.max(1, metrics.mean_response_time / 1000),
-        latency_stability: Math.min(25, metrics.response_time_variance / 10000),
-        decay_inverse: Math.max(0, 1 - metrics.performance_decay),
-        dropout: Math.max(0, 3 - livesRemaining),
-        retry: 0,
-        recovery: 1,
-      },
-      time_constraint: {
-        available_hours_per_week: 8,
-        preferred_session_length: 45,
-      },
-    });
-
-    let nextLevel: number | null = null;
-    setLevels((previous) => {
-      const updated = {
-        ...previous,
-        [level]: {
-          ...previous[level],
-          completed: true,
-        },
-      };
-      nextLevel = LEVELS.find((candidate) => !updated[candidate].completed && candidate !== level) ?? null;
-      return updated;
-    });
-
-    if (nextLevel) {
-      setCurrentLevel(nextLevel);
-    }
-
-    setCurrentQuestion(1);
-    setLivesRemaining(3);
-    setTimeLeftSeconds(LEVEL_TIME_SECONDS);
-    setQuestionStartTs(Date.now());
-  }
-
-  function handleQuickComplete() {
-    LEVELS.forEach((level) => {
-      if (!levels[level].completed) {
-        const generated: LevelState = {
-          completed: true,
-          accuracyRecord: Array.from({ length: QUESTION_COUNT }, (_, index) => index % 2 === 0),
-          responseTimings: Array.from({ length: QUESTION_COUNT }, () => 1200),
-        };
-
-        const metrics = computeLevelMetrics(generated);
-        submitLevelMutation.mutate({
-          level,
-          metrics: {
-            accuracy: Math.round(metrics.accuracy * 100),
-            expected_time: 2,
-            latency_stability: 4,
-            decay_inverse: Math.max(0, 1 - metrics.performance_decay),
-            dropout: 0,
-            retry: 0,
-            recovery: 1,
-          },
-          time_constraint: {
-            available_hours_per_week: 8,
-            preferred_session_length: 45,
-          },
-        });
-      }
-    });
-
-    setLevels(
-      Object.fromEntries(
-        LEVELS.map((level) => [
-          level,
-          {
-            completed: true,
-            accuracyRecord: Array.from({ length: QUESTION_COUNT }, (_, index) => index % 2 === 0),
-            responseTimings: Array.from({ length: QUESTION_COUNT }, () => 1200),
-          },
-        ])
-      ) as Record<number, LevelState>
-    );
-  }
-
-  function handleCompleteAssessment() {
-    completeMutation.mutate(
-      {
-        session_id: sessionId,
-        completed_levels: completedLevels,
-      },
-      {
-        onSuccess: () => navigate("/dashboard"),
-      }
-    );
-  }
+    setSystemState("profile_active");
+    navigate("/");
+  };
 
   return (
-    <main className="assessment-page" data-testid="assessment-screen">
-      <header className="top-bar">
-        <strong>SKILLOS</strong>
-        <span data-testid="assessment-session-id">Session: {sessionId}</span>
-        <span>Level {currentLevel}/6</span>
-        <span className={`hearts-row ${lifeLossFlash ? "life-loss-flash" : ""}`.trim()} data-testid="lives-left">
-          {[0, 1, 2].map((heart) => (
-            <Heart key={heart} size={16} fill={heart < livesRemaining ? "currentColor" : "transparent"} />
-          ))}
-        </span>
-        <span data-testid="timer">{formatTimer(timeLeftSeconds)}</span>
-      </header>
+    <main className="neo-brutalist" style={{ padding: "2rem", minHeight: "100vh" }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1 className="neo-brutalist-title">ASSESSMENT SUITE</h1>
+        {canComputeProfile && (
+          <button 
+            className="neo-brutalist-button neo-brutalist-button--primary"
+            onClick={handleComputeProfile}
+          >
+            COMPUTE PROFILE
+          </button>
+        )}
+      </div>
 
-      <section className="level-grid">
+      <div className="neo-brutalist-card" style={{ marginBottom: "2rem" }}>
+        <h2>PROGRESS: {completedCount} / 6 LEVELS</h2>
+        <div className="metric-row__bar" style={{ height: '30px', marginTop: '1rem' }}>
+          <div className="metric-row__fill" style={{ width: `${(completedCount / 6) * 100}%`, background: '#FFE500' }} />
+        </div>
+      </div>
+
+      <div className="skill-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
         {LEVELS.map((level) => {
-          const isCompleted = levels[level].completed;
-          const isActive = level === currentLevel;
-          const status = isCompleted ? "COMPLETED" : isActive ? "IN PROGRESS" : "AVAILABLE";
+          const game = games[level.id as keyof typeof games];
+          const badge = getStatusBadge(game.attempts);
 
           return (
-            <button
-              key={level}
-              type="button"
-              data-testid={`level-card-${level}`}
-              className={`level-card ${isActive ? "level-card--active" : ""}`.trim()}
-              onClick={() => selectLevel(level)}
-              disabled={isCompleted}
-            >
-              Level {level}
-              <span className="small-copy">{status}</span>
-            </button>
+            <div key={level.id} className="neo-brutalist-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="neo-brutalist-tag" style={{ alignSelf: 'flex-start' }}>{level.tag}</div>
+              <h3 style={{ margin: 0, fontSize: '20px' }}>{level.name}</h3>
+              <p className="small-copy" style={{ flex: 1 }}>{level.description}</p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                <span className={`neo-brutalist-status-badge ${badge.class}`}>
+                  {badge.label}
+                </span>
+                <div style={{ fontSize: '18px' }}>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <span key={i}>{i < game.lastLivesRemaining ? '●' : '○'}</span>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{ fontWeight: '900', marginTop: '8px' }}>
+                BEST: {game.bestScore} PTS
+              </div>
+
+              <button 
+                className="neo-brutalist-button neo-brutalist-button--primary"
+                style={{ marginTop: '16px', width: '100%' }}
+                onClick={() => navigate(`/assessment/run/${level.id}`)}
+              >
+                {game.attempts > 0 ? 'RETRY ASSESSMENT' : 'START ASSESSMENT'}
+              </button>
+            </div>
           );
         })}
-      </section>
-
-      <BrutalCard accent="yellow" className="assessment-headline-card">
-        <h1 className="headline">Executive Control Assessment</h1>
-        <p>Working memory + inhibition</p>
-      </BrutalCard>
-
-      <section className="assessment-content">
-        <BrutalCard className="question-card">
-          <h2>
-            Question {currentQuestion} / {QUESTION_COUNT}
-          </h2>
-          <p>Respond to the active cognitive prompt.</p>
-          <div className="button-row">
-            <BrutalButton data-testid="submit-response" variant="primary" onClick={() => handleAnswerSubmission(true)}>
-              Submit Response
-            </BrutalButton>
-            <BrutalButton onClick={() => handleAnswerSubmission(false)} variant="danger">
-              Mark Incorrect
-            </BrutalButton>
-          </div>
-        </BrutalCard>
-
-        <BrutalCard className="metrics-card">
-          <h2 className="section-title">Performance</h2>
-          <MetricBar
-            label="Accuracy"
-            value={levels[currentLevel].accuracyRecord.filter(Boolean).length / Math.max(1, levels[currentLevel].accuracyRecord.length)}
-          />
-          <MetricBar label="Latency" value={0.4} />
-          <MetricBar label="Retry" value={0} />
-        </BrutalCard>
-      </section>
-
-      <section className="button-row">
-        <BrutalButton data-testid="quick-complete-assessment" onClick={handleQuickComplete}>
-          Quick Complete 6 Levels
-        </BrutalButton>
-        <BrutalButton
-          data-testid="complete-assessment"
-          variant="primary"
-          onClick={handleCompleteAssessment}
-          disabled={completedLevels.length < 6}
-        >
-          Complete Assessment
-        </BrutalButton>
-      </section>
+      </div>
     </main>
   );
 }
