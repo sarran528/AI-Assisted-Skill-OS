@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "backend/main.py"
+    },
+    {
+      "source": "/health",
+      "destination": "backend/main.py"
+    }
+  ]
+}
