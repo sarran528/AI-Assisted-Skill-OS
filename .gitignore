@@ -28,3 +28,5 @@ Thumbs.db
 
 # Local env files
 .env
+
+/generated/prisma

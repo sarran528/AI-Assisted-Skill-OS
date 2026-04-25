@@ -7,7 +7,7 @@ Accepted
 The implementation plan specifies core technologies.
 
 ## Decision
-Backend: Python + FastAPI. Database: PostgreSQL + pgvector. Storage: Nhost object storage. LLM: Anthropic or OpenAI API. Frontend: React + TypeScript.
+Backend: Python + FastAPI. Database: PostgreSQL + pgvector. Storage: Supabase object storage. LLM: Anthropic or OpenAI API. Frontend: React + TypeScript.
 
 ## Consequences
 - Consistent stack across environments.

@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "021"
-down_revision = "020"
+down_revision = "002_fix_refresh_token_ip_address"
 branch_labels = None
 depends_on = None
 
@@ -18,9 +18,9 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "assessment_sessions",
-        sa.Column("id", sa.UUID(), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
-        sa.Column("session_id", sa.UUID(), nullable=False, unique=True),
-        sa.Column("user_id", sa.UUID(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("session_id", sa.String(36), nullable=False, unique=True),
+        sa.Column("user_id", sa.String(36), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default=sa.text("'in_progress'")),
         sa.Column("submissions", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'")),
         sa.Column("completed_levels", postgresql.JSONB(), nullable=False, server_default=sa.text("'[]'")),

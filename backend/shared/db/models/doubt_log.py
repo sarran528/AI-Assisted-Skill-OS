@@ -7,9 +7,9 @@ from backend.shared.db.base import Base
 class DoubtLog(Base):
     __tablename__ = "doubt_log"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
+    id = Column(String(36), primary_key=True, server_default=text("uuid_generate_v4()"))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    session_id = Column(String(36), ForeignKey("sessions.id"), nullable=True)
     skill_id = Column(String(64), nullable=False)
     phase = Column(String(64), nullable=True)
     question = Column(Text, nullable=False)

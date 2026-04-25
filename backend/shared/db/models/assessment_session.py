@@ -7,9 +7,9 @@ from backend.shared.db.base import Base
 class AssessmentSession(Base):
     __tablename__ = "assessment_sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    session_id = Column(UUID(as_uuid=True), nullable=False, unique=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(String(36), primary_key=True, server_default=text("uuid_generate_v4()"))
+    session_id = Column(String(36), nullable=False, unique=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     status = Column(String(32), nullable=False, server_default=text("'in_progress'"))
     submissions = Column(JSONB, nullable=False, server_default=text("'{}'"))
     completed_levels = Column(JSONB, nullable=False, server_default=text("'[]'"))

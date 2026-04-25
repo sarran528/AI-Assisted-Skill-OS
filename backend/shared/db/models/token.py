@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, String, Text, text
-from sqlalchemy.dialects.postgresql import INET, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import INET
 
 from backend.shared.db.base import Base
 
@@ -11,14 +11,14 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id = Column(
-        PG_UUID(as_uuid=False),
+        String(36),
         primary_key=True,
         default=lambda: str(uuid4()),
         server_default=text("uuid_generate_v4()"),
     )
-    user_id = Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     token_hash = Column(Text, nullable=False)
-    jti = Column(PG_UUID(as_uuid=False), nullable=False, unique=True)
+    jti = Column(String(36), nullable=False, unique=True)
     issued_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
@@ -35,8 +35,8 @@ Index("rt_expires_idx", RefreshToken.expires_at)
 class RevokedAccessToken(Base):
     __tablename__ = "revoked_access_tokens"
 
-    jti = Column(PG_UUID(as_uuid=False), primary_key=True)
-    user_id = Column(PG_UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    jti = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, server_default=text("now()"))
     expires_at = Column(DateTime(timezone=True), nullable=False)
 

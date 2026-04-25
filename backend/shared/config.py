@@ -45,10 +45,9 @@ class Settings(BaseSettings):
     local_embedding_model: str = "all-MiniLM-L6-v2"
     faiss_index_path: str = "backend/data/faiss/skill_templates.index"
     faiss_metadata_path: str = "backend/data/faiss/skill_templates.meta.json"
-    nhost_storage_endpoint: str = ""
-    nhost_storage_bucket: str = ""
-    nhost_storage_access_key: str = ""
-    nhost_storage_secret_key: str = ""
+    supabase_url: str = ""
+    supabase_key: str = ""
+    supabase_storage_bucket: str = ""
     cors_allowed_origins: str = "http://localhost:3000"
 
 

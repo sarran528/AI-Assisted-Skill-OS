@@ -7,9 +7,9 @@ from backend.shared.db.base import Base
 class TipLog(Base):
     __tablename__ = "tip_log"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(String(36), primary_key=True, server_default=text("uuid_generate_v4()"))
+    session_id = Column(String(36), ForeignKey("sessions.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     technique_id = Column(String(64), nullable=False)
     failure_type = Column(String(64), nullable=False)
     attempt_number = Column(Integer, nullable=False)

@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from backend.shared.db.base import Base
 
@@ -11,7 +10,7 @@ class LearningParameter(Base):
     __tablename__ = "learning_parameters"
 
     id = Column(
-        PG_UUID(as_uuid=False),
+        String(36),
         primary_key=True,
         default=lambda: str(uuid4()),
         server_default=text("uuid_generate_v4()"),

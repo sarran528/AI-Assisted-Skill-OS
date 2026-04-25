@@ -1,8 +1,8 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, Numeric, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import String, Column, DateTime, ForeignKey, Index, Integer, JSON, Numeric, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 from backend.shared.db.base import Base
 
@@ -11,13 +11,13 @@ class CognitiveProfile(Base):
     __tablename__ = "cognitive_profiles"
 
     id = Column(
-        PG_UUID(as_uuid=False),
+        String(36),
         primary_key=True,
         default=lambda: str(uuid4()),
         server_default=text("uuid_generate_v4()"),
     )
     user_id = Column(
-        PG_UUID(as_uuid=False),
+        String(36),
         ForeignKey("users.id"),
         nullable=False,
     )

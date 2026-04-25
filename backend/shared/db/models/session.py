@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, text
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from backend.shared.db.base import Base
 
@@ -11,7 +10,7 @@ class Session(Base):
     __tablename__ = "sessions"
 
     id = Column(
-        PG_UUID(as_uuid=False),
+        String(36),
         primary_key=True,
         default=lambda: str(uuid4()),
         server_default=text("uuid_generate_v4()"),
