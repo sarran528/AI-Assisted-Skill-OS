@@ -18,7 +18,7 @@ export interface BaselineStateResponse {
 export const skillApi = {
   listSkills: async () => {
     const response = await axiosClient.get<Array<{ skill_id: string; name: string; complexity_score: number }>>(
-      '/skill/list'
+      'skill/list'
     );
     return {
       data: response.data.map((item) => ({
@@ -30,8 +30,8 @@ export const skillApi = {
   },
 
   submitBaseline: (data: GroundingProbeSubmit) =>
-    axiosClient.post<BaselineStateResponse>('/skill/baseline', data),
+    axiosClient.post<BaselineStateResponse>('skill/baseline', data),
 
   getBaseline: (skillId: string) =>
-    axiosClient.get<BaselineStateResponse>(`/skill/${skillId}/baseline`),
+    axiosClient.get<BaselineStateResponse>(`skill/${skillId}/baseline`),
 };

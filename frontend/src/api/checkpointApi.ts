@@ -16,9 +16,9 @@ export interface CheckpointValidateResponse {
 export const checkpointApi = {
   listCheckpoints: (roadmapId: string) =>
     axiosClient.get<Array<{ checkpoint_id: string; status: string; phase: string }>>(
-      `/checkpoint/${roadmapId}`
+      `checkpoint/${roadmapId}`
     ),
 
   validateCheckpoint: (data: CheckpointValidateRequest) =>
-    axiosClient.post<CheckpointValidateResponse>('/checkpoint/validate', data),
+    axiosClient.post<CheckpointValidateResponse>('checkpoint/validate', data),
 };

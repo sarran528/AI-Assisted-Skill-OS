@@ -5,7 +5,7 @@ export async function validateCheckpoint(payload: {
   sessionId: string;
   checkpointId: string;
 }): Promise<CheckpointValidationResponse> {
-  const response = await axiosClient.post("/checkpoint/validate", {
+  const response = await axiosClient.post("checkpoint/validate", {
     session_id: payload.sessionId,
     checkpoint_id: payload.checkpointId,
   });

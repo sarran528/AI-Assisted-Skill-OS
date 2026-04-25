@@ -13,6 +13,6 @@ export async function getSkills(): Promise<SkillItem[]> {
 }
 
 export async function submitGrounding(payload: GroundingPayload): Promise<unknown> {
-  const response = await axiosClient.post("/skill/baseline", payload);
+  const response = await axiosClient.post("skill/baseline", payload);
   return response.data;
 }

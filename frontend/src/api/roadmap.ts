@@ -7,7 +7,7 @@ export async function getRoadmap(userId: string): Promise<Roadmap> {
 }
 
 export async function generateRoadmap(payload: RoadmapGenerateRequest): Promise<RoadmapGenerateResponse> {
-  const response = await axiosClient.post("/roadmap/generate", payload);
+  const response = await axiosClient.post("roadmap/generate", payload);
   return response.data;
 }
 

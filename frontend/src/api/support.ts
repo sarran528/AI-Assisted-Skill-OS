@@ -11,7 +11,7 @@ export async function askDoubt(payload: {
   technique_id: string;
   user_query: string;
 }): Promise<DoubtAnswerResponse> {
-  const response = await axiosClient.post("/doubt/ask", payload);
+  const response = await axiosClient.post("doubt/ask", payload);
   return response.data;
 }
 
@@ -20,7 +20,7 @@ export async function fetchSupportResources(params: {
   phase: string;
   technique_id?: string;
 }): Promise<SupportResourcesResponse> {
-  const response = await axiosClient.get("/resources", {
+  const response = await axiosClient.get("resources", {
     params,
   });
   return response.data;

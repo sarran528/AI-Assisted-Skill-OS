@@ -16,11 +16,11 @@ export interface ProfileVectorResponse {
 
 export const profileApi = {
   getProfile: (userId: string) =>
-    axiosClient.get<ProfileVectorResponse>(`/profile/${userId}`),
+    axiosClient.get<ProfileVectorResponse>(`profile/${userId}`),
 
   getParameters: (userId: string) =>
-    axiosClient.get<Record<string, number>>(`/profile/${userId}/parameters`),
+    axiosClient.get<Record<string, number>>(`profile/${userId}/parameters`),
 
   getHistory: (userId: string) =>
-    axiosClient.get<ProfileVectorResponse[]>(`/profile/${userId}/history`),
+    axiosClient.get<ProfileVectorResponse[]>(`profile/${userId}/history`),
 };
