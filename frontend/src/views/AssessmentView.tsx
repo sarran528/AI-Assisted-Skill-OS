@@ -47,9 +47,10 @@ export function AssessmentView() {
     : GAME_IDS.filter((id) => games[id].completed).length;
   const localSubmittedCount = GAME_IDS.filter((id) => games[id].completed).length;
   const backendReadyToCompute =
-    statusData?.status === "in_progress" &&
+    (statusData?.status === "in_progress" || statusData?.status === "completed") &&
     Array.isArray(statusData?.levels_completed) &&
     statusData.levels_completed.length === 6;
+    
   const canComputeProfile = Boolean(
     sessionId && backendReadyToCompute
   );
@@ -79,9 +80,10 @@ export function AssessmentView() {
             stress_resilience: data.stress_resilience,
             time_constraint: data.time_constraint,
           },
+          learning_parameters: data.learning_parameters || null,
         });
         setSystemState("profile_active");
-        navigate("/");
+        navigate("/dashboard");
       }
     });
   };

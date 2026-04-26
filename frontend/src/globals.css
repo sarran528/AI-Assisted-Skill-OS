@@ -67,8 +67,9 @@ h3,
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 16px;
-  min-height: 100vh;
+  height: 100vh;
   padding: 16px;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -78,7 +79,7 @@ h3,
   padding: 12px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 32px);
+  height: 100%;
   overflow: hidden;
 }
 
@@ -165,6 +166,9 @@ h3,
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  height: 100%;
+  padding-right: 4px; /* for scrollbar clearance */
 }
 
 .main-panel--centered {
@@ -658,10 +662,8 @@ button:active {
 }
 
 .dashboard-layout {
-  height: calc(100vh - 32px);
   display: grid;
   gap: 12px;
-  overflow: hidden;
 }
 
 .dashboard-status {
@@ -689,8 +691,6 @@ button:active {
   display: grid;
   gap: 12px;
   min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
   align-content: start;
 }
 

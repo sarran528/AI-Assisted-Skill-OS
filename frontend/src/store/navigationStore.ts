@@ -49,6 +49,7 @@ export interface NavigationState {
       stress_resilience: number;
       time_constraint: number;
     };
+    learning_parameters: Record<string, any> | null;
   };
 
   currentSkill: {
@@ -106,6 +107,7 @@ const initialState = {
       stress_resilience: 0,
       time_constraint: 0,
     },
+    learning_parameters: null,
   },
 
   currentSkill: {

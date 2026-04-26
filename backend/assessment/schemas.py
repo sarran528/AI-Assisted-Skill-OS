@@ -158,3 +158,4 @@ class ProfileResponse(BaseModel):
     motor_baseline: float
     stress_resilience: float
     time_constraint: float
+    learning_parameters: Optional[LearningParameters] = None

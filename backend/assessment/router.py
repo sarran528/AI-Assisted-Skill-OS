@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.assessment.schemas import AssessmentResponse, AssessmentSubmission, ProfileResponse, RawMetrics, RawTimeConstraint
 from backend.assessment.service import process_assessment_levels
 from backend.auth.dependencies import AuthContext, get_current_user
-from backend.shared.db.models import AssessmentSession, CognitiveProfile
+from backend.shared.db.models import AssessmentSession, CognitiveProfile, LearningParameter
 from backend.shared.db.session import get_db_session
 from backend.shared.rate_limit import limiter
 
@@ -267,16 +267,24 @@ async def complete_assessment(
         session.updated_at = datetime.now(timezone.utc)
         await db_session.commit()
 
+        # Fetch parameters for response
+        params = await db_session.scalar(
+            select(LearningParameter)
+            .where(LearningParameter.profile_id == str(profile.id))
+            .limit(1)
+        )
+
         return ProfileResponse(
             profile_id=profile.id or uuid4(),
             user_id=profile.user_id or user_id,
             version=profile.version,
-            cognitive_capacity=profile.profile_vector.cognitive_capacity,
-            attention_stability=profile.profile_vector.attention_stability,
-            learning_tolerance=profile.profile_vector.learning_tolerance,
-            motor_baseline=profile.profile_vector.motor_baseline,
-            stress_resilience=profile.profile_vector.stress_resilience,
-            time_constraint=profile.profile_vector.time_constraint,
+            cognitive_capacity=profile.cognitive_capacity,
+            attention_stability=profile.attention_stability,
+            learning_tolerance=profile.learning_tolerance,
+            motor_baseline=profile.motor_baseline,
+            stress_resilience=profile.stress_resilience,
+            time_constraint=profile.time_constraint,
+            learning_parameters=params.__dict__ if params else None
         )
 
     except (TypeError, ValueError) as e:
@@ -305,13 +313,35 @@ async def assessment_status(
         .limit(1)
     )
     completed_levels = list(session.completed_levels or []) if session else []
-    profile_exists = await db_session.scalar(
-        select(CognitiveProfile.id).where(CognitiveProfile.user_id == user_id)
+    profile = await db_session.scalar(
+        select(CognitiveProfile)
+        .where(CognitiveProfile.user_id == str(user_id))
+        .order_by(CognitiveProfile.created_at.desc())
+        .limit(1)
     )
+    
+    params = None
+    if profile:
+        params = await db_session.scalar(
+            select(LearningParameter)
+            .where(LearningParameter.profile_id == str(profile.id))
+            .limit(1)
+        )
+    
     return {
         "session_id": str(session.session_id) if session else None,
         "status": session.status if session else "not_started",
         "levels_completed": completed_levels,
-        "profile_active": profile_exists is not None,
+        "profile_active": profile is not None,
+        "profile_id": str(profile.id) if profile else None,
+        "profile": {
+            "cognitive_capacity": float(profile.cognitive_capacity),
+            "attention_stability": float(profile.attention_stability),
+            "learning_tolerance": float(profile.learning_tolerance),
+            "motor_baseline": float(profile.motor_baseline),
+            "stress_resilience": float(profile.stress_resilience),
+            "time_constraint": float(profile.time_constraint),
+        } if profile else None,
+        "learning_parameters": params.__dict__ if params else None
     }
 

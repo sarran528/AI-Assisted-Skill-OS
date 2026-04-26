@@ -22,15 +22,14 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/profile" replace />} />
           <Route path="/login" element={<AuthView defaultMode="login" />} />
           <Route path="/register" element={<AuthView defaultMode="register" />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route path="/dashboard" element={<DashboardView />} />
+              <Route path="/profile" element={<DashboardView />} />
               <Route path="/assessment" element={<AssessmentView />} />
               <Route path="/assessment/run/:level" element={<AssessmentRunView />} />
-              <Route path="/profile" element={<ProfileView />} />
               <Route path="/skill/select" element={<SkillSelectView />} />
               <Route path="/skill/grounding" element={<GroundingView />} />
               <Route path="/roadmap" element={<RoadmapView />} />
@@ -41,7 +40,7 @@ export function App() {
               <Route path="/doubt" element={<Navigate to="/help" replace />} />
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/profile" replace />} />
         </Routes>
       </Router>
     </QueryClientProvider>

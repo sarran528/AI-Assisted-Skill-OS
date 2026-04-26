@@ -65,18 +65,11 @@ export function Sidebar() {
         </div>
         <nav className="sidebar__nav">
             <ul>
-                <SidebarItem to="/dashboard" label="Dashboard" />
+                <SidebarItem to="/profile" label="Profile" />
                 <SidebarItem
                     to="/assessment"
                     label="Assessment"
                     state={isAssessmentComplete ? "Complete" : `${completedLevels} / 6 complete`}
-                />
-                <SidebarItem
-                    to="/profile"
-                    label="Profile"
-                    state={isProfileLocked ? "Locked" : "Active"}
-                    locked={isProfileLocked}
-                    tooltip="Complete all 6 assessments to unlock."
                 />
                 <SidebarItem
                     to="/skill/select"
