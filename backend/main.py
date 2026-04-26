@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -14,6 +15,10 @@ from backend.user.router import router as user_router
 from backend.shared.config import settings
 from backend.shared.errors import BusinessError, SystemError
 from backend.auth.middleware import auth_context_middleware
+from backend.shared.db.session import get_db_session
+from sqlalchemy import text
+import redis
+
 from backend.shared.logging import configure_logging
 from backend.shared.rate_limit import limiter
 from backend.shared.middleware import request_id_middleware
@@ -53,8 +58,29 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=429, content={"code": "rate_limited", "message": str(exc)})
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
+    async def health() -> dict[str, Any]:
+        health_status = {"status": "ok", "database": "unknown", "redis": "unknown"}
+        
+        # Check Database
+        try:
+            async for session in get_db_session():
+                await session.execute(text("SELECT 1"))
+                health_status["database"] = "connected"
+                break
+        except Exception as e:
+            health_status["database"] = f"error: {str(e)}"
+            health_status["status"] = "error"
+
+        # Check Redis
+        try:
+            r = redis.from_url(settings.redis_url)
+            if r.ping():
+                health_status["redis"] = "connected"
+        except Exception as e:
+            health_status["redis"] = f"error: {str(e)}"
+            health_status["status"] = "error"
+
+        return health_status
 
     @app.get("/metrics")
     async def metrics() -> Response:

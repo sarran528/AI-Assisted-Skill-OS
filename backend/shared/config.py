@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     serper_api_key: str = ""
     serpapi_api_key: str = ""
-    search_provider: str = "serper"
+    search_provider: str = "serpapi"
     groq_api_key: str = ""
     together_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"

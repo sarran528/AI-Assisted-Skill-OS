@@ -15,6 +15,10 @@ from backend.skill.schemas import (
     SkillListResponse,
     SkillTemplateBuildRequest,
     SkillTemplateBuildResponse,
+    SkillDiscoverRequest,
+    SkillDiscoverResponse,
+    SkillResearchComposeRequest,
+    SkillResearchComposeResponse,
 )
 from backend.skill.grounding_schemas import (
     GroundingProbeResponses,
@@ -28,9 +32,65 @@ from backend.skill.intelligence_service import SkillIntelligenceService
 from backend.shared.db.models import CognitiveProfile
 from backend.assessment.profile_vector import ProfileVector
 from backend.skill.intelligence import SkillResearchObject
+from backend.skill.template_pipeline import to_skill_id
 from sqlalchemy import select
+from backend.shared.queue.tasks import generate_roadmap_task
 
 router = APIRouter()
+
+
+def _flatten_template_constants(structure: dict, complexity_score: float) -> dict:
+    strict = structure.get("structured_template", {}) if isinstance(structure, dict) else {}
+    phases_obj = strict.get("phases", {}) if isinstance(strict, dict) else {}
+    if not phases_obj:
+        phases_obj = structure.get("phases", {}) if isinstance(structure, dict) else {}
+
+    phase_names = list(phases_obj.keys())
+    techniques: list[str] = []
+    checkpoints: list[str] = []
+    prerequisites: list[str] = []
+
+    for phase_name, phase_data in phases_obj.items():
+        if not isinstance(phase_data, dict):
+            continue
+        prerequisites.extend([str(c) for c in phase_data.get("competencies", [])])
+        for technique in phase_data.get("techniques", []):
+            if isinstance(technique, dict):
+                t_name = str(technique.get("name", technique.get("id", "technique")))
+                techniques.append(t_name)
+                for cp in technique.get("checkpoints", []):
+                    if isinstance(cp, dict):
+                        checkpoints.append(str(cp.get("competency_target", cp.get("target_metric", "checkpoint"))))
+            else:
+                techniques.append(str(technique))
+        for cp in phase_data.get("checkpoints", []):
+            checkpoints.append(str(cp))
+
+    # Deterministic constant from discovered structure and complexity.
+    estimated_total_hours = max(24, int((len(phase_names) * 18) + (len(techniques) * 4) + (complexity_score * 60)))
+    return {
+        "phases": phase_names,
+        "techniques": techniques,
+        "checkpoints": checkpoints,
+        "prerequisites": sorted(set(prerequisites)),
+        "estimated_total_hours": estimated_total_hours,
+    }
+
+
+def _difficulty_modifier(payload: SkillResearchComposeRequest, profile: ProfileVector) -> float:
+    modifier = 1.0
+    exp_weight = {"beginner": 0.2, "intermediate": 0.0, "advanced": -0.15}
+    goal_weight = {"hobby": -0.05, "professional": 0.1, "exam": 0.15}
+    modifier += exp_weight.get(payload.experience_level, 0.0)
+    modifier += goal_weight.get(payload.target_goal, 0.0)
+    if payload.hours_per_week < 4:
+        modifier += 0.25
+    elif payload.hours_per_week >= 12:
+        modifier -= 0.1
+    if not payload.has_required_tools:
+        modifier += 0.2
+    modifier += (0.5 - float(profile.time_constraint)) * 0.1
+    return max(0.5, min(2.0, modifier))
 
 
 @router.get("", response_model=list[SkillListResponse])
@@ -178,6 +238,141 @@ async def generate_skill_template(
         )
 
 
+@router.post("/discover", response_model=SkillDiscoverResponse, status_code=status.HTTP_201_CREATED)
+async def discover_skill_from_internet(
+    payload: SkillDiscoverRequest,
+    current_user: AuthContext = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    """Discover/generate a skill template from internet sources for any user."""
+    _ = current_user
+    try:
+        service = SkillTemplateService(db_session)
+        template, _generated_version, created = await service.build_template_from_skill_name(
+            skill_name=payload.skill_name,
+            domain=payload.domain,
+            complexity_score=payload.complexity_score,
+        )
+        return SkillDiscoverResponse(
+            skill_id=template.skill_id,
+            name=template.name,
+            domain=template.domain,
+            complexity_score=float(template.complexity_score),
+            version=int(template.version),
+            created=created,
+        )
+    except BusinessError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.args[0],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to discover skill: {str(e)}",
+        )
+
+
+@router.post("/research/compose", response_model=SkillResearchComposeResponse, status_code=status.HTTP_201_CREATED)
+async def compose_skill_research(
+    payload: SkillResearchComposeRequest,
+    request: Request,
+    current_user: AuthContext = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    """Merge internet research + user answers + profile into SkillResearchObject."""
+    try:
+        normalized_skill_id = to_skill_id(payload.skill_id)
+
+        profile_record = await db_session.scalar(
+            select(CognitiveProfile)
+            .where(CognitiveProfile.user_id == current_user.user.id)
+            .order_by(CognitiveProfile.created_at.desc())
+        )
+        if not profile_record:
+            raise BusinessError(
+                code="no_profile_found",
+                message="User profile not found. Complete assessment first.",
+            )
+
+        profile = ProfileVector(
+            cognitive_capacity=float(profile_record.cognitive_capacity),
+            attention_stability=float(profile_record.attention_stability),
+            learning_tolerance=float(profile_record.learning_tolerance),
+            motor_baseline=float(profile_record.motor_baseline),
+            stress_resilience=float(profile_record.stress_resilience),
+            time_constraint=float(profile_record.time_constraint),
+        )
+
+        skill_service = SkillTemplateService(db_session)
+        template = await skill_service.get_skill(normalized_skill_id)
+        constants = _flatten_template_constants(template.structure or {}, float(template.complexity_score))
+        difficulty_modifier = _difficulty_modifier(payload, profile)
+
+        # Ensure baseline exists from user answers if prior probes were skipped.
+        grounding_repo = GroundingRepository(db_session)
+        baseline = await grounding_repo.get_latest_baseline(current_user.user.id, normalized_skill_id)
+        if baseline is None:
+            recognition_map = {"beginner": 0.25, "intermediate": 0.55, "advanced": 0.8}
+            declarative_map = {"beginner": 0.2, "intermediate": 0.5, "advanced": 0.75}
+            confidence_base = {"beginner": 0.3, "intermediate": 0.6, "advanced": 0.8}
+            confidence_score = confidence_base[payload.experience_level] + (0.05 if payload.has_required_tools else -0.05)
+            confidence_score = max(0.0, min(1.0, confidence_score))
+            perceived_level = (recognition_map[payload.experience_level] + declarative_map[payload.experience_level] + confidence_score) / 3.0
+            confidence_bias = max(-1.0, min(1.0, perceived_level - profile.cognitive_capacity))
+
+            await grounding_repo.create_baseline(
+                user_id=current_user.user.id,
+                skill_id=normalized_skill_id,
+                exposure_score=recognition_map[payload.experience_level],
+                declarative_score=declarative_map[payload.experience_level],
+                confidence_score=confidence_score,
+                perceived_level=perceived_level,
+                actual_level=profile.cognitive_capacity,
+                confidence_bias=confidence_bias,
+                raw_responses=payload.model_dump(),
+            )
+
+        intelligence_service = SkillIntelligenceService(db_session)
+        await intelligence_service.generate_skill_research(
+            user_id=current_user.user.id,
+            skill_id=normalized_skill_id,
+            profile=profile,
+            ip_address=request.client.host if request.client else "127.0.0.1",
+            user_goal=payload.target_goal,
+            difficulty_modifier=difficulty_modifier,
+            user_answers=payload.model_dump(),
+            template_constants=constants,
+        )
+
+        try:
+            task = generate_roadmap_task.delay(str(current_user.user.id), normalized_skill_id)
+            return SkillResearchComposeResponse(
+                skill_id=normalized_skill_id,
+                status="queued",
+                roadmap_job_id=task.id,
+            )
+        except Exception as e:
+            logger.error(f"Failed to queue roadmap task: {e}")
+            # Still return success because we have the research object persisted,
+            # but warn that the roadmap generation is delayed.
+            return SkillResearchComposeResponse(
+                skill_id=normalized_skill_id,
+                status="persisted_but_not_queued",
+                roadmap_job_id="none",
+            )
+    except BusinessError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST if e.code != "skill_not_found" else status.HTTP_404_NOT_FOUND,
+            detail=e.args[0],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to compose skill research: {str(e)}",
+        )
+
+
 @router.put("/{skill_id}", response_model=SkillTemplateResponse)
 async def update_skill(
     skill_id: str,
@@ -254,6 +449,7 @@ async def submit_grounding(
         ip_address = request.client.host if request.client else "127.0.0.1"
 
         if isinstance(payload, GroundingProbeSubmit):
+            normalized_skill_id = to_skill_id(payload.skill_id)
             normalized_confidence = max(0.0, min(1.0, payload.confidence_bias / 5.0))
             perceived_level = (payload.recognition_score + payload.declarative_score + normalized_confidence) / 3.0
             confidence_bias_value = max(-1.0, min(1.0, perceived_level - profile.cognitive_capacity))
@@ -261,7 +457,7 @@ async def submit_grounding(
             repo = GroundingRepository(db_session)
             await repo.create_baseline(
                 user_id=current_user.user.id,
-                skill_id=payload.skill_id,
+                skill_id=normalized_skill_id,
                 exposure_score=payload.recognition_score,
                 declarative_score=payload.declarative_score,
                 confidence_score=normalized_confidence,
@@ -277,7 +473,7 @@ async def submit_grounding(
             )
 
             return BaselineStateResponse(
-                skill_id=payload.skill_id,
+                skill_id=normalized_skill_id,
                 exposure_score=payload.recognition_score,
                 declarative_knowledge=payload.declarative_score,
                 confidence_bias=payload.confidence_bias,
@@ -286,9 +482,10 @@ async def submit_grounding(
 
         # Submit grounding with full probe responses
         service = GroundingService(db_session)
+        normalized_skill_id = to_skill_id(payload.skill_id)
         response = await service.submit_grounding(
             user_id=current_user.user.id,
-            skill_id=payload.skill_id,
+            skill_id=normalized_skill_id,
             responses=payload,
             profile=profile,
             ip_address=ip_address,
@@ -326,7 +523,7 @@ async def get_baseline(
     db_session: AsyncSession = Depends(get_db_session),
 ) -> BaselineStateResponse:
     repo = GroundingRepository(db_session)
-    baseline = await repo.get_latest_baseline(current_user.user.id, skill_id)
+    baseline = await repo.get_latest_baseline(current_user.user.id, to_skill_id(skill_id))
     if baseline is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="baseline_not_found")
 
@@ -387,7 +584,7 @@ async def generate_skill_research(
         
         research_object = await service.generate_skill_research(
             user_id=current_user.user.id,
-            skill_id=skill_id,
+            skill_id=to_skill_id(skill_id),
             profile=profile,
             ip_address=ip_address,
         )

@@ -11,6 +11,7 @@ from backend.shared.db.repositories.skill_research_repository import SkillResear
 from backend.shared.db.repositories.skill_template_repository import SkillTemplateRepository
 from backend.shared.errors import BusinessError
 from backend.skill.intelligence import SkillResearchObject, compute_skill_research
+from backend.skill.template_pipeline import to_skill_id
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,10 @@ class SkillIntelligenceService:
         skill_id: str,
         profile: ProfileVector,
         ip_address: str = "unknown",
+        user_goal: str | None = None,
+        difficulty_modifier: float = 1.0,
+        user_answers: dict | None = None,
+        template_constants: dict | None = None,
     ) -> SkillResearchObject:
         """
         Generate complete skill research object via four LLM calls.
@@ -54,18 +59,28 @@ class SkillIntelligenceService:
             BusinessError: If skill not found or grounding_required
             SystemError: If LLM calls fail unrecoverably
         """
+        normalized_skill_id = to_skill_id(skill_id)
+
         # Validate skill exists and is active
-        skill_template = await self.skill_template_repo.get_active_template(skill_id)
+        skill_template = await self.skill_template_repo.get_active_template(normalized_skill_id)
         if not skill_template:
             raise BusinessError("skill_not_found")
 
         # Fetch latest baseline state (proves grounding was completed)
-        baseline_state = await self.grounding_repo.get_latest_baseline(user_id, skill_id)
+        baseline_state = await self.grounding_repo.get_latest_baseline(user_id, normalized_skill_id)
         if not baseline_state:
             raise BusinessError("grounding_required")
 
         # Run four sequential LLM calls
-        research_object = await compute_skill_research(profile, baseline_state, skill_template)
+        research_object = await compute_skill_research(
+            profile,
+            baseline_state,
+            skill_template,
+            user_goal=user_goal,
+            difficulty_modifier=difficulty_modifier,
+            user_answers=user_answers,
+            template_constants=template_constants,
+        )
 
         # Persist to database
         await SkillResearchRepository.create(self.session, research_object)
@@ -76,7 +91,7 @@ class SkillIntelligenceService:
             user_id=user_id,
             event_type="skill.research_generated",
             metadata={
-                "skill_id": skill_id,
+                "skill_id": normalized_skill_id,
                 "is_feasible": research_object.is_feasible,
                 "estimated_weeks": research_object.estimated_weeks,
                 "overall_risk": research_object.overall_risk,
@@ -85,7 +100,7 @@ class SkillIntelligenceService:
         )
 
         logger.info(
-            f"Generated skill research for user {user_id} skill {skill_id}: "
+            f"Generated skill research for user {user_id} skill {normalized_skill_id}: "
             f"feasible={research_object.is_feasible}, weeks={research_object.estimated_weeks}"
         )
 

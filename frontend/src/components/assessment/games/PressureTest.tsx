@@ -155,7 +155,7 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
   // 8s for round 1, decreasing by 0.2s each round (8.0 → 6.2)
   const getTimeWindow = (r: number) => 8000 - (r - 1) * 200;
 
-  const beginRound = () => {
+  const beginRound = (r: number) => {
     clearTimer();
     evaluatingRef.current = false;
     const rule = pickRandomRule();
@@ -171,7 +171,7 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
     setPhase('showRule');
 
     setTimeout(() => {
-      const tw = getTimeWindow(roundRef.current);
+      const tw = getTimeWindow(r);
       setTimeLeft(tw);
       timeLeftRef.current = tw;
       roundStartTimeRef.current = performance.now();
@@ -193,7 +193,7 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
 
   const startPlaying = () => {
     setPhase('showRule');
-    beginRound();
+    beginRound(1);
   };
 
   useEffect(() => {
@@ -222,15 +222,16 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
     let earned = 0;
     if (isCorrect) {
       earned = 30;
-      // Bonus for speed (more than half the time remaining)
       const initialTime = getTimeWindow(roundRef.current);
       if (timeLeftRef.current > initialTime / 2) earned += 20;
       setScore(prev => prev + earned);
     } else {
       lifeLossRounds.current.push(roundRef.current);
-      const nextLives = livesRef.current - 1;
-      setLives(nextLives);
-      livesRef.current = nextLives; // Immediate update for logic
+      setLives(prev => {
+        const next = prev - 1;
+        livesRef.current = next;
+        return next;
+      });
     }
 
     setRoundPoints(earned);
@@ -245,10 +246,13 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
       if (roundRef.current >= 10) {
         finishGame();
       } else {
-        setRound(prev => prev + 1);
-        beginRound();
+        setRound(prev => {
+          const next = prev + 1;
+          beginRound(next);
+          return next;
+        });
       }
-    }, 1500); // Increased from 800ms to 1.5s
+    }, 1500);
   };
 
   const finishGame = () => {
@@ -397,10 +401,10 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
 
               <button
                 className="neo-brutalist-button"
-                style={{ 
-                  fontSize: '18px', 
-                  padding: '12px 24px', 
-                  background: '#0a0a0a', 
+                style={{
+                  fontSize: '18px',
+                  padding: '12px 24px',
+                  background: '#0a0a0a',
                   color: 'white',
                   width: 'fit-content'
                 }}
@@ -410,9 +414,6 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
               </button>
             </div>
 
-            <div style={{ fontSize: '24px', fontWeight: 900, marginTop: '16px' }}>
-              CURRENT PRESSES: {pressDisplay}
-            </div>
           </>
         )}
 
@@ -427,13 +428,13 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
             >
               {lastResult ? '✓ CORRECT' : '✗ WRONG'}
             </div>
-            
+
             <div style={{ fontSize: '24px', fontWeight: 900, marginTop: '8px' }}>
               {lastResult ? `+${roundPoints} POINTS` : '0 POINTS'}
             </div>
 
             <p style={{ marginTop: '24px', fontSize: '14px', opacity: 0.8 }}>
-              RULE: {currentRule.label} | NUMBER: {currentNumber} | YOUR PRESSES: {pressDisplay} | TARGET: {targetPresses}
+              RULE: {currentRule.label} | NUMBER: {currentNumber}
             </p>
           </div>
         )}

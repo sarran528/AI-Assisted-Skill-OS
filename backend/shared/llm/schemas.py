@@ -62,12 +62,18 @@ class SkillModifierResult(BaseModel):
     """LLM output for skill-specific parameter modifiers."""
 
     technique_density_adjustment: float = Field(
-        ..., ge=-0.3, le=0.3, description="Adjustment to technique_density (-0.3 to 0.3)"
+        ..., description="Adjustment to technique_density (-0.3 to 0.3)"
     )
     repetition_boost: float = Field(
-        ..., ge=-0.3, le=0.3, description="Adjustment to repetition_intensity (-0.3 to 0.3)"
+        ..., description="Adjustment to repetition_intensity (-0.3 to 0.3)"
     )
     notes: str = Field(default="", description="Reasoning for adjustments")
+
+    @field_validator("technique_density_adjustment", "repetition_boost")
+    @classmethod
+    def clamp_modifier(cls, v: float) -> float:
+        """Clamp modifiers to [-0.3, 0.3] range to handle LLM over-exuberance."""
+        return max(-0.3, min(0.3, v))
 
 
 # Conservative fallback instances for when LLM calls fail both attempts

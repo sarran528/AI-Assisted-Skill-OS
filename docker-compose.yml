@@ -13,18 +13,26 @@ services:
     volumes:
       - minio_data:/data
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   celery_worker:
     build: .
     command: celery -A backend.shared.queue.celery_app worker --loglevel=info --concurrency=4
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
     depends_on:
       - redis
-      - db
 
   celery_beat:
     build: .
     command: celery -A backend.shared.queue.celery_app beat --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
       - redis
 

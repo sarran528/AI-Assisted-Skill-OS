@@ -17,7 +17,7 @@ def build_doubt_prompt(
         "Use ONLY the following reference material to answer the question.\n"
         "Do not use any knowledge outside of the provided context.\n"
         "If the context does not contain enough information to answer, say so clearly.\n\n"
-        "Return strict JSON with keys: answer, source_phases, confidence, caveat.\n\n"
+        "Return strict JSON with exactly these keys: answer (string), source_phases (list of strings), confidence (one of: high, medium, low), caveat (string or null).\n\n"
         f"CONTEXT:\n{context}\n\n"
         f"QUESTION:\n{question}\n\n"
         "Respond with a concise, specific answer in 2-4 sentences. No preamble."
@@ -32,23 +32,13 @@ def build_tip_prompt(context: str, technique_id: str, failure_type: str, attempt
         "Use ONLY the following reference material.\n"
         "Provide ONE specific, actionable correction. Maximum 2 sentences.\n"
         "Do not explain why this matters. Do not provide encouragement. Just the correction.\n"
-        "Return strict JSON with keys: tip, target_step, severity.\n\n"
+        "Return strict JSON with exactly these keys: tip (string), target_step (string or null), severity (one of: minor, moderate, critical).\n\n"
         f"CONTEXT:\n{context}\n\n"
         "Tip:"
     )
 
 
 def build_feasibility_prompt(profile: ProfileVector, skill: SkillTemplate) -> str:
-    """
-    Build prompt for feasibility analysis.
-
-    Args:
-        profile: User's ProfileVector
-        skill: Target skill template
-
-    Returns:
-        Complete feasibility analysis prompt
-    """
     return f"""Evaluate if a learner with the following profile can feasibly acquire this skill:
 
 ProfileVector Dimensions:
@@ -64,21 +54,15 @@ Skill Details:
 - Complexity Score: {skill.complexity_score:.3f}
 - Name: {skill.name}
 
-Return a JSON response evaluating feasibility considering the learner's constraints."""
+Return strict JSON with exactly these keys:
+- feasible (boolean)
+- risk_level (one of: low, medium, high)
+- blockers (list of strings)
+- confidence (float 0.0-1.0)"""
 
 
 def build_risk_zone_prompt(profile: ProfileVector, skill: SkillTemplate) -> str:
-    """
-    Build prompt for risk zone detection.
-
-    Args:
-        profile: User's ProfileVector
-        skill: Target skill template
-
-    Returns:
-        Complete risk zone detection prompt
-    """
-    return f"""Identify which dimensions of the learner's profile represent potential failure points for this skill:
+    return f"""Identify potential failure points for this skill based on the learner's profile:
 
 ProfileVector Dimensions:
 - Cognitive Capacity: {profile.cognitive_capacity:.2f}
@@ -92,20 +76,13 @@ Skill Details:
 - Domain: {skill.domain}
 - Complexity Score: {skill.complexity_score:.3f}
 
-Return a JSON response identifying risks specific to this skill-profile combination."""
+Return strict JSON with exactly one key "risks" containing a list of objects. Each object must have:
+- dimension (string, e.g. "Cognitive Capacity")
+- type (string, e.g. "motor_constraint")
+- severity (one of: low, medium, high)"""
 
 
 def build_time_model_prompt(profile: ProfileVector, skill: SkillTemplate) -> str:
-    """
-    Build prompt for time modeling.
-
-    Args:
-        profile: User's ProfileVector
-        skill: Target skill template
-
-    Returns:
-        Complete time modeling prompt
-    """
     phases = list(skill.structure.get("phases", {}).keys()) if skill.structure else []
     return f"""Estimate realistic timeframes for skill acquisition:
 
@@ -113,21 +90,14 @@ ProfileVector Time Constraint: {profile.time_constraint:.2f}
 Skill Phases: {", ".join(phases) if phases else "fundamentals, intermediate, advanced"}
 Skill Complexity Score: {skill.complexity_score:.3f}
 
-Return a JSON response with total weeks and hours per phase estimates."""
+Return strict JSON with exactly these keys:
+- estimated_weeks (integer)
+- hours_per_phase (dictionary where keys are phase names and values are floats)
+- confidence (float 0.0-1.0)"""
 
 
 def build_skill_modifier_prompt(profile: ProfileVector, skill: SkillTemplate) -> str:
-    """
-    Build prompt for skill modifier derivation.
-
-    Args:
-        profile: User's ProfileVector
-        skill: Target skill template
-
-    Returns:
-        Complete skill modifier prompt
-    """
-    return f"""Derive learning parameter adjustments specific to this skill:
+    return f"""Derive learning parameter adjustments (fine-tuning) for this skill:
 
 Learner Profile:
 - Cognitive Capacity: {profile.cognitive_capacity:.2f}
@@ -138,4 +108,9 @@ Skill Details:
 - Domain: {skill.domain}
 - Complexity Score: {skill.complexity_score:.3f}
 
-Return a JSON response with technique_density_adjustment and repetition_boost modifiers."""
+Return strict JSON with exactly these keys:
+- technique_density_adjustment (float between -0.3 and 0.3)
+- repetition_boost (float between -0.3 and 0.3)
+- notes (string explanation)
+
+CRITICAL: The adjustments MUST be between -0.3 and 0.3. Use 0.0 for no change."""

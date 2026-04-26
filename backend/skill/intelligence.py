@@ -1,5 +1,6 @@
 """Skill intelligence computation engine."""
 from datetime import datetime
+from typing import Any
 from typing import Literal
 from uuid import UUID
 
@@ -34,6 +35,14 @@ class SkillResearchObject(BaseModel):
     overall_risk: Literal["low", "medium", "high"] = Field(
         ..., description="Overall risk level"
     )
+    user_goal: str | None = Field(default=None, description="User target goal context")
+    difficulty_modifier: float = Field(default=1.0, ge=0.5, le=2.0)
+    phases: list[str] = Field(default_factory=list)
+    techniques: list[str] = Field(default_factory=list)
+    checkpoints: list[str] = Field(default_factory=list)
+    prerequisites: list[str] = Field(default_factory=list)
+    estimated_total_hours: int | None = Field(default=None, ge=1)
+    user_answers: dict[str, Any] | None = Field(default=None)
 
     @classmethod
     def from_llm_results(
@@ -46,6 +55,14 @@ class SkillResearchObject(BaseModel):
         time_model: TimeModelResult,
         skill_modifiers: SkillModifierResult,
         confidence_bias: float,
+        user_goal: str | None = None,
+        difficulty_modifier: float = 1.0,
+        phases: list[str] | None = None,
+        techniques: list[str] | None = None,
+        checkpoints: list[str] | None = None,
+        prerequisites: list[str] | None = None,
+        estimated_total_hours: int | None = None,
+        user_answers: dict[str, Any] | None = None,
     ) -> "SkillResearchObject":
         """Assemble SkillResearchObject from LLM results with derived fields."""
         return cls(
@@ -59,8 +76,16 @@ class SkillResearchObject(BaseModel):
             confidence_bias=confidence_bias,
             generated_at=datetime.utcnow(),
             is_feasible=feasibility.feasible,
-            estimated_weeks=time_model.estimated_weeks,
+            estimated_weeks=max(1, round(float(time_model.estimated_weeks) * float(difficulty_modifier))),
             overall_risk=feasibility.risk_level,
+            user_goal=user_goal,
+            difficulty_modifier=difficulty_modifier,
+            phases=phases or [],
+            techniques=techniques or [],
+            checkpoints=checkpoints or [],
+            prerequisites=prerequisites or [],
+            estimated_total_hours=estimated_total_hours,
+            user_answers=user_answers,
         )
 
 
@@ -68,6 +93,10 @@ async def compute_skill_research(
     profile: ProfileVector,
     baseline_state: "BaselineSkillState",  # type: ignore  # noqa: F821
     template: SkillTemplate,
+    user_goal: str | None = None,
+    difficulty_modifier: float = 1.0,
+    user_answers: dict[str, Any] | None = None,
+    template_constants: dict[str, Any] | None = None,
 ) -> SkillResearchObject:
     """
     Orchestrate four sequential LLM calls to produce SkillResearchObject.
@@ -150,4 +179,12 @@ async def compute_skill_research(
         time_model=time_model,
         skill_modifiers=skill_modifiers,
         confidence_bias=baseline_state.confidence_bias,
+        user_goal=user_goal,
+        difficulty_modifier=difficulty_modifier,
+        phases=list((template_constants or {}).get("phases", [])),
+        techniques=list((template_constants or {}).get("techniques", [])),
+        checkpoints=list((template_constants or {}).get("checkpoints", [])),
+        prerequisites=list((template_constants or {}).get("prerequisites", [])),
+        estimated_total_hours=(template_constants or {}).get("estimated_total_hours"),
+        user_answers=user_answers,
     )

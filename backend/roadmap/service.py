@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import desc, select
+from sqlalchemy import case, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ from backend.shared.db.repositories.roadmap_repository import RoadmapRepository
 from backend.shared.db.repositories.skill_research_repository import SkillResearchRepository
 from backend.shared.errors import BusinessError, SystemError
 from backend.skill.intelligence import SkillResearchObject
+from backend.skill.template_pipeline import to_skill_id
 
 
 def _learning_params_from_model(model: LearningParameter) -> LearningParameters:
@@ -39,12 +40,15 @@ async def _fetch_latest_learning_parameters(
     user_id: UUID,
     skill_id: str,
 ) -> LearningParameter | None:
+    # Assessment pipeline currently persists generic parameters.
+    # Prefer skill-specific params; fallback to generic.
+    skill_preference = case((LearningParameter.skill_id == skill_id, 0), else_=1)
     stmt = (
         select(LearningParameter)
         .join(CognitiveProfile, CognitiveProfile.id == LearningParameter.profile_id)
         .where(CognitiveProfile.user_id == user_id)
-        .where(LearningParameter.skill_id == skill_id)
-        .order_by(desc(CognitiveProfile.version), desc(LearningParameter.created_at))
+        .where(LearningParameter.skill_id.in_([skill_id, "generic"]))
+        .order_by(skill_preference, desc(CognitiveProfile.version), desc(LearningParameter.created_at))
         .limit(1)
     )
     result = await db.execute(stmt)
@@ -56,12 +60,13 @@ def _fetch_latest_learning_parameters_sync(
     user_id: UUID,
     skill_id: str,
 ) -> LearningParameter | None:
+    skill_preference = case((LearningParameter.skill_id == skill_id, 0), else_=1)
     stmt = (
         select(LearningParameter)
         .join(CognitiveProfile, CognitiveProfile.id == LearningParameter.profile_id)
         .where(CognitiveProfile.user_id == user_id)
-        .where(LearningParameter.skill_id == skill_id)
-        .order_by(desc(CognitiveProfile.version), desc(LearningParameter.created_at))
+        .where(LearningParameter.skill_id.in_([skill_id, "generic"]))
+        .order_by(skill_preference, desc(CognitiveProfile.version), desc(LearningParameter.created_at))
         .limit(1)
     )
     result = db.execute(stmt)
@@ -69,6 +74,7 @@ def _fetch_latest_learning_parameters_sync(
 
 
 async def create_roadmap(db: AsyncSession, user_id: UUID, skill_id: str) -> GeneratedRoadmap:
+    skill_id = to_skill_id(skill_id)
     existing = await RoadmapRepository.get_active(db, user_id, skill_id)
     if existing is not None:
         return GeneratedRoadmap.model_validate(existing.structure)
@@ -114,6 +120,7 @@ async def create_roadmap(db: AsyncSession, user_id: UUID, skill_id: str) -> Gene
 
 
 def sync_create_roadmap(db: Session, user_id: UUID, skill_id: str) -> dict:
+    skill_id = to_skill_id(skill_id)
     existing = (
         db.execute(
             select(Roadmap)

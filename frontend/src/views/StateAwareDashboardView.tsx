@@ -275,13 +275,19 @@ export function StateAwareDashboardView() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {roadmapState.phasesCompleted.length}
+                {roadmapState.phases.filter(p => p.status === 'complete').length}
               </div>
               <div className="text-sm text-muted-foreground">Phases Completed</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {roadmapState.checkpointsCompleted.length}
+                {roadmapState.phases.reduce((acc, phase) => 
+                  acc + phase.competencies.reduce((cAcc, comp) => 
+                    cAcc + comp.techniques.reduce((tAcc, tech) => 
+                      tAcc + tech.checkpoints.filter(cp => cp.status === 'passed').length
+                    , 0)
+                  , 0)
+                , 0)}
               </div>
               <div className="text-sm text-muted-foreground">Checkpoints Passed</div>
             </div>

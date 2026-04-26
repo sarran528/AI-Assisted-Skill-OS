@@ -15,6 +15,36 @@ export interface BaselineStateResponse {
   adjusted_repetition_intensity: number;
 }
 
+export interface DiscoverSkillRequest {
+  skill_name: string;
+  domain?: string;
+  complexity_score?: number;
+}
+
+export interface DiscoverSkillResponse {
+  skill_id: string;
+  name: string;
+  domain: string;
+  complexity_score: number;
+  version: number;
+  created: boolean;
+}
+
+export interface SkillResearchComposeRequest {
+  skill_id: string;
+  why_learn: string;
+  experience_level: "beginner" | "intermediate" | "advanced";
+  has_required_tools: boolean;
+  hours_per_week: number;
+  target_goal: "hobby" | "professional" | "exam";
+}
+
+export interface SkillResearchComposeResponse {
+  skill_id: string;
+  status: string;
+  roadmap_job_id: string;
+}
+
 export const skillApi = {
   listSkills: async () => {
     const response = await axiosClient.get<Array<{ skill_id: string; name: string; complexity_score: number }>>(
@@ -34,4 +64,10 @@ export const skillApi = {
 
   getBaseline: (skillId: string) =>
     axiosClient.get<BaselineStateResponse>(`/skill/${skillId}/baseline`),
+
+  discoverSkill: (data: DiscoverSkillRequest) =>
+    axiosClient.post<DiscoverSkillResponse>('/skill/discover', data),
+
+  composeResearch: (data: SkillResearchComposeRequest) =>
+    axiosClient.post<SkillResearchComposeResponse>('/skill/research/compose', data),
 };

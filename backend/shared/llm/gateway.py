@@ -1,6 +1,8 @@
 """LLM gateway with validation and retry logic."""
 import logging
-from typing import TypeVar
+import json
+import re
+from typing import TypeVar, Any
 
 from pydantic import BaseModel, ValidationError
 from tenacity import (
@@ -9,15 +11,29 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
-import anthropic
 
 from backend.shared.config import settings
 from backend.shared.errors import SystemError
-from backend.shared.llm.client import get_anthropic_client
+from backend.shared.llm.client import (
+    get_anthropic_client,
+    get_groq_client,
+    get_together_client,
+    get_openai_client
+)
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _strip_markdown_json(text: str) -> str:
+    """Strip markdown code blocks from LLM response."""
+    text = text.strip()
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0].strip()
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0].strip()
+    return text
 
 
 async def llm_call(
@@ -29,41 +45,62 @@ async def llm_call(
 ) -> T:
     """
     Call LLM with structured output validation and retry logic.
-
-    Enforces three constraints:
-    1. Temperature is always 0.0 for structured output
-    2. Response is validated against Pydantic schema
-    3. Failure triggers one retry before returning fallback
-
-    Args:
-        prompt: User message prompt
-        system_prompt: System message instruction
-        response_schema: Pydantic model for response validation
-        fallback: Fallback response if both attempts fail
-        temperature: Override ignored - always 0.0
-
-    Returns:
-        Validated response model or fallback
-
-    Raises:
-        SystemError: If API calls fail at network/service level after retries
+    Supports Anthropic, Groq, Together, and OpenAI.
     """
-    # Use the passed temperature (default 0.0 for structured, 0.2 for RAG).
-
-    client = get_anthropic_client()
 
     async def make_api_call() -> str:
-        """Make single API call to Anthropic."""
-        response = await client.messages.create(
-            model=settings.llm_model,
-            max_tokens=settings.llm_max_tokens,
-            temperature=temperature,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text
+        provider = settings.llm_provider.lower()
+        
+        if provider == "anthropic":
+            client = get_anthropic_client()
+            response = await client.messages.create(
+                model=settings.llm_model,
+                max_tokens=settings.llm_max_tokens,
+                temperature=temperature,
+                system=system_prompt,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text
+            
+        elif provider == "groq":
+            client = get_groq_client()
+            response = await client.chat.completions.create(
+                model=settings.groq_model,
+                max_tokens=settings.llm_max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+            )
+            return response.choices[0].message.content
+            
+        elif provider == "together":
+            client = get_together_client()
+            response = await client.chat.completions.create(
+                model=settings.together_model,
+                max_tokens=settings.llm_max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+            )
+            return response.choices[0].message.content
+            
+        else: # Default to openai
+            client = get_openai_client()
+            response = await client.chat.completions.create(
+                model=settings.llm_model,
+                max_tokens=settings.llm_max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+            )
+            return response.choices[0].message.content
 
-    # Retry API calls on exceptions - not on validation errors
     api_call_retry = AsyncRetrying(
         stop=stop_after_attempt(2),
         wait=wait_exponential(multiplier=1, min=1, max=4),
@@ -72,11 +109,10 @@ async def llm_call(
     )
 
     try:
-        # Attempt 1: First API call
+        content = ""
         try:
             content = await make_api_call()
         except Exception as e:
-            # Attempt 2: Retry on API error with exponential backoff
             logger.warning(f"LLM API call failed, retrying: {e}")
             try:
                 async for attempt in api_call_retry:
@@ -86,16 +122,17 @@ async def llm_call(
                 logger.error(f"LLM API call failed after retry: {retry_error}")
                 raise SystemError("llm_gateway_failure") from retry_error
 
-        # Attempt 1: Validate response
+        # Strip markdown and validate
+        clean_content = _strip_markdown_json(content)
         try:
-            return response_schema.model_validate_json(content)
+            return response_schema.model_validate_json(clean_content)
         except ValidationError as val_error:
             logger.warning(f"LLM response validation failed, retrying: {val_error}")
 
-            # Attempt 2: Retry validation with fresh API call
             try:
                 content = await make_api_call()
-                return response_schema.model_validate_json(content)
+                clean_content = _strip_markdown_json(content)
+                return response_schema.model_validate_json(clean_content)
             except (ValidationError, Exception) as retry_val_error:
                 logger.warning(
                     f"LLM response validation failed after retry. Raw response: {content}. Error: {retry_val_error}"

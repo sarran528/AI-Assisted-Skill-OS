@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useNavigationStore } from "../store/navigationStore";
+
+import axios from "axios";
 import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
 
 const LEVEL_META = [
@@ -28,6 +30,21 @@ const PARAMETER_SNAPSHOT = [
 export function DashboardView() {
   const navigate = useNavigate();
   const { profileState, currentSkill, roadmapState } = useNavigationStore();
+  const [health, setHealth] = useState<any>(null);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await axios.get("http://localhost:8000/health");
+        setHealth(res.data);
+      } catch (e) {
+        setHealth({ status: "error", message: "Backend unreachable" });
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
   const { games } = useAssessmentStore();
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
 
@@ -91,6 +108,11 @@ export function DashboardView() {
         <span>Profile: {profileActive ? "Active" : "Locked"}</span>
         <span>|</span>
         <span>Skill: {currentSkill.skillName ?? "Not selected"}</span>
+        {health && (
+          <span style={{ marginLeft: 'auto', color: health.status === 'ok' ? '#00FF41' : '#FF3131', fontWeight: 'bold' }}>
+            ● SYSTEM: {health.status.toUpperCase()}
+          </span>
+        )}
       </section>
 
       <section className="dashboard-columns">

@@ -18,7 +18,9 @@ export function AppShell() {
   return (
     <div className="page-grid">
       <Sidebar />
-      <Outlet />
+      <main className="main-panel">
+        <Outlet />
+      </main>
     </div>
   );
 }

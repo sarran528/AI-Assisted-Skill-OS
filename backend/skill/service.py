@@ -127,13 +127,21 @@ class SkillTemplateService:
         if existing:
             return existing, f"v{existing.version}", False
 
-        pipeline = SkillTemplatePipeline()
+        pipeline = SkillTemplatePipeline(db_session=self.session)
         try:
             result = await pipeline.build_with_fallback(skill_name)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"SkillTemplatePipeline.build_with_fallback failed for '{skill_name}': {e}", exc_info=True)
+            result = None
         finally:
             await pipeline.close()
 
         if result is None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Template generation pipeline returned None for skill '{skill_name}'")
             raise BusinessError(
                 code="template_generation_failed",
                 message="Failed to generate a valid SkillTemplate from external sources",

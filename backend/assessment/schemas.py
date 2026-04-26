@@ -66,6 +66,7 @@ class NormalizedSignals(BaseModel):
 class ProfileVector(BaseModel):
     """The 6-dimension cognitive profile vector (all 0-1 range)."""
     
+    version: int = Field(default=1, ge=1, description="ProfileVector schema version")
     cognitive_capacity: float = Field(..., ge=0, le=1)
     attention_stability: float = Field(..., ge=0, le=1)
     learning_tolerance: float = Field(..., ge=0, le=1)

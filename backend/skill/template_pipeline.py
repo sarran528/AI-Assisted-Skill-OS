@@ -15,8 +15,13 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 import numpy as np
+import tiktoken
+from openai import AsyncOpenAI
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.shared.config import settings
+from backend.shared.db.models import RagChunk
 
 REQUIRED_PHASES = ["fundamentals", "intermediate", "advanced", "application", "mastery"]
 NUMERIC_SIGNALS = ["%", "seconds", "count", "errors", "ms", "rate", ">=", "<=", "<", ">"]
@@ -29,20 +34,29 @@ CONTENT_CAP = 12000
 
 PASS_1_PROMPT = """
 You are a concept extraction engine.
-From the content provided, extract:
-- core concepts and sub-skills
-- learning techniques and drills
-- common errors and failure modes
-- difficulty progression signals
+Extract learning objectives, techniques, and progression from the provided content.
 
-Return ONLY valid JSON. No explanation.
+CRITICAL: Return ONLY valid JSON with NO explanation, NO markdown, NO code blocks.
 
-Schema:
+Output exactly:
 {
-  "concepts": ["string"],
-  "techniques": [{"name": "string", "difficulty": "beginner|intermediate|advanced", "steps": ["string"]}],
-  "failure_modes": ["string"],
-  "progression_order": ["string"]
+  "core_concepts": ["concept1", "concept2"],
+  "intermediate_concepts": ["concept3", "concept4"],
+  "advanced_concepts": ["concept5"],
+  "techniques": [
+    {
+      "name": "technique name",
+      "difficulty": "beginner",
+      "steps": ["step1", "step2", "step3"]
+    }
+  ],
+  "failure_modes": ["common mistake 1", "common mistake 2"],
+  "progression_order": ["concept1", "concept2", "concept3"],
+  "estimated_hours_fundamentals": 20,
+  "estimated_hours_intermediate": 30,
+  "estimated_hours_advanced": 40,
+  "estimated_hours_application": 25,
+  "estimated_hours_mastery": 20
 }
 """
 
@@ -50,41 +64,72 @@ PASS_2_PROMPT = """
 You are a SkillTemplate construction engine.
 Convert the extracted concepts into a strict SkillTemplate JSON object.
 
-Rules:
-- Return ONLY valid JSON. No preamble. No explanation. No markdown.
-- Phases must be exactly: fundamentals, intermediate, advanced, application, mastery
-- Each phase: 2-4 techniques maximum
-- Each technique: 1-3 checkpoints maximum
-- target_metric MUST be quantifiable: time in seconds, accuracy %, count, error rate
-- threshold MUST contain a numeric boundary (e.g. ">= 85%", "< 3 errors", "<= 30s")
-- Vague metrics like "improve understanding" are INVALID — do not use them
-- Techniques must increase in difficulty across phases
-- failure_condition must be specific and measurable
+CRITICAL RULES:
+- Return ONLY valid JSON. No preamble. No explanation. No markdown code blocks.
+- Phases MUST be exactly: fundamentals, intermediate, advanced, application, mastery (ALL 5 required)
+- Each phase MUST have 2-4 techniques
+- Each technique MUST have 1-3 checkpoints
+- EVERY checkpoint MUST have these exact fields: id, competency_target, target_metric, threshold, validation_method, failure_condition
+- target_metric and threshold MUST be quantifiable with numeric signals like: %, seconds, count, errors, ms, rate, >=, <=, <, >
+  Examples: ">= 85%", "< 3 errors", "<= 30 seconds", ">= 5 completed"
+- NEVER use vague metrics like "understand", "improve", "learn" — these will FAIL validation
+- Difficulty must increase across phases
+- validation_method must be one of: numeric, artifact, behavioral_log
 
-Schema:
+SCHEMA:
 {
-  "skill_id": "string (snake_case)",
   "phases": {
-    "<phase_name>": {
+    "fundamentals": {
       "competencies": ["string"],
       "techniques": [
         {
-          "id": "string",
+          "id": "tech-1",
           "name": "string",
-          "protocol_steps": ["string"],
+          "protocol_steps": ["step 1", "step 2"],
           "checkpoints": [
             {
-              "id": "string",
+              "id": "cp-1",
               "competency_target": "string",
-              "target_metric": "string",
-              "threshold": "string",
-              "validation_method": "numeric | artifact | behavioral_log",
-              "failure_condition": "string"
+              "target_metric": "accuracy %, time in seconds, count, or error rate",
+              "threshold": "numeric comparison like >= 80%",
+              "validation_method": "numeric|artifact|behavioral_log",
+              "failure_condition": "specific condition like < 70% accuracy"
             }
           ]
         }
       ]
-    }
+    },
+    "intermediate": { ... },
+    "advanced": { ... },
+    "application": { ... },
+    "mastery": { ... }
+  }
+}
+
+EXAMPLE for Java - fundamentals phase:
+{
+  "phases": {
+    "fundamentals": {
+      "competencies": ["variables", "data types", "operators"],
+      "techniques": [
+        {
+          "id": "variables-101",
+          "name": "Variable Declaration and Assignment",
+          "protocol_steps": ["declare int variable", "assign value", "print to console"],
+          "checkpoints": [
+            {
+              "id": "var-cp-1",
+              "competency_target": "Declare and assign primitive types",
+              "target_metric": "accuracy percentage",
+              "threshold": ">= 80%",
+              "validation_method": "numeric",
+              "failure_condition": "< 80% accuracy on 10 variable declarations"
+            }
+          ]
+        }
+      ]
+    },
+    ...all 5 phases required...
   }
 }
 """
@@ -97,11 +142,11 @@ def to_skill_id(skill_name: str) -> str:
 
 def build_queries(skill_name: str) -> list[str]:
     return [
-        f"{skill_name} beginner to advanced learning roadmap",
-        f"{skill_name} core techniques and fundamentals",
-        f"{skill_name} common mistakes and failure modes",
-        f"{skill_name} practice drills and exercises",
-        f"{skill_name} skill progression checkpoints",
+        f"{skill_name} complete learning roadmap",
+        f"{skill_name} beginner techniques",
+        f"{skill_name} advanced techniques",
+        f"{skill_name} common mistakes",
+        f"{skill_name} prerequisite skills",
     ][:MAX_QUERY_COUNT]
 
 
@@ -200,14 +245,23 @@ class _FaissAssets:
     metadata: dict[str, dict[str, Any]]
 
 
+@dataclass
+class _RetrievedSource:
+    url: str
+    content: str
+    doc_type: str = "web_article"
+    phase: str | None = None
+
+
 class SkillTemplatePipeline:
     """Builds schema-enforced skill templates from external web content."""
 
-    def __init__(self) -> None:
+    def __init__(self, db_session: AsyncSession | None = None) -> None:
         self._http = httpx.AsyncClient(timeout=12.0)
         self._cache: dict[str, StructuredTemplateResult] = {}
         self._embedder = self._init_embedder()
         self._faiss_assets = self._init_faiss_assets()
+        self._db_session = db_session
 
     async def close(self) -> None:
         await self._http.aclose()
@@ -358,6 +412,89 @@ class SkillTemplatePipeline:
             return None
         return None
 
+    def _chunk_text(self, text: str, chunk_size: int = 512, overlap: int = 64) -> list[tuple[str, int]]:
+        """Chunk text by tokens and return (chunk_text, token_count)."""
+        if not text.strip():
+            return []
+        if overlap >= chunk_size:
+            overlap = max(0, chunk_size // 4)
+        try:
+            encoding = tiktoken.encoding_for_model(settings.embedding_model)
+        except Exception:
+            encoding = tiktoken.get_encoding("cl100k_base")
+        tokens = encoding.encode(text)
+        if not tokens:
+            return []
+
+        step = max(1, chunk_size - overlap)
+        chunks: list[tuple[str, int]] = []
+        for start in range(0, len(tokens), step):
+            token_slice = tokens[start : start + chunk_size]
+            if not token_slice:
+                break
+            chunk_text = encoding.decode(token_slice).strip()
+            if chunk_text:
+                chunks.append((chunk_text, len(token_slice)))
+            if start + chunk_size >= len(tokens):
+                break
+        return chunks
+
+    async def _embed_text(self, text: str) -> list[float] | None:
+        if not settings.openai_api_key:
+            return None
+        try:
+            client = AsyncOpenAI(api_key=settings.openai_api_key)
+            response = await client.embeddings.create(
+                model=settings.embedding_model,
+                input=[text],
+            )
+            return response.data[0].embedding
+        except Exception:
+            return None
+
+    async def _index_sources_in_pgvector(self, skill_id: str, sources: list[_RetrievedSource]) -> None:
+        if self._db_session is None:
+            return
+        payload: list[dict[str, Any]] = []
+        for source in sources:
+            chunks = self._chunk_text(source.content, chunk_size=512, overlap=64)
+            for chunk_index, (chunk_text, token_count) in enumerate(chunks):
+                embedding = await self._embed_text(chunk_text)
+                if embedding is None:
+                    continue
+                payload.append(
+                    {
+                        "skill_id": skill_id,
+                        "phase": source.phase,
+                        "technique_id": None,
+                        "doc_type": source.doc_type,
+                        "source_url": source.url,
+                        "chunk_index": chunk_index,
+                        "content": chunk_text,
+                        "embedding": embedding,
+                        "model_name": settings.embedding_model,
+                        "token_count": token_count,
+                    }
+                )
+
+        if not payload:
+            return
+
+        stmt = insert(RagChunk).values(payload)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["skill_id", "source_url", "chunk_index"],
+            set_={
+                "phase": stmt.excluded.phase,
+                "doc_type": stmt.excluded.doc_type,
+                "content": stmt.excluded.content,
+                "embedding": stmt.excluded.embedding,
+                "model_name": stmt.excluded.model_name,
+                "token_count": stmt.excluded.token_count,
+            },
+        )
+        await self._db_session.execute(stmt)
+        await self._db_session.flush()
+
     async def _call_openai_compatible_json(
         self,
         *,
@@ -428,13 +565,26 @@ class SkillTemplatePipeline:
         )
 
     async def structure_template_two_pass(self, skill_name: str, raw_content: str) -> dict[str, Any] | None:
+        import logging
+        logger = logging.getLogger(__name__)
+        
         pass1_payload = f"Skill: {skill_name}\n\nContent:\n{raw_content[:CONTENT_CAP]}"
         extracted = await self._structured_llm_call(system_prompt=PASS_1_PROMPT, content=pass1_payload, max_tokens=2000)
         if extracted is None:
+            logger.warning(f"Pass 1 (concept extraction) failed for skill '{skill_name}'")
             return None
 
+        logger.debug(f"Pass 1 output for '{skill_name}': {json.dumps(extracted)[:500]}")
+
         pass2_payload = f"Skill: {skill_name}\n\nExtracted Data:\n{json.dumps(extracted)}"
-        return await self._structured_llm_call(system_prompt=PASS_2_PROMPT, content=pass2_payload, max_tokens=4000)
+        result = await self._structured_llm_call(system_prompt=PASS_2_PROMPT, content=pass2_payload, max_tokens=4000)
+        
+        if result is None:
+            logger.warning(f"Pass 2 (template synthesis) failed for skill '{skill_name}'")
+            return None
+        
+        logger.debug(f"Pass 2 output for '{skill_name}': {json.dumps(result)[:500]}")
+        return result
 
     async def _attempt_build(
         self,
@@ -454,17 +604,25 @@ class SkillTemplatePipeline:
             urls = await self._with_backoff(lambda q=query: self.search_web(q, num=query_num))
             all_urls.extend(filter_urls(urls or []))
 
-        raw_texts: list[str] = []
+        retrieved_sources: list[_RetrievedSource] = []
         for url in all_urls[:url_limit]:
             text = await self._with_backoff(lambda u=url: self.extract_text(u))
             if text and len(text) > min_length:
-                raw_texts.append(text)
+                retrieved_sources.append(_RetrievedSource(url=url, content=text))
 
-        raw_texts = deduplicate_texts(raw_texts)
-        if len(raw_texts) < 2:
+        deduped_sources: list[_RetrievedSource] = []
+        seen_hashes: set[str] = set()
+        for source in retrieved_sources:
+            digest = hashlib.md5(source.content[:500].encode("utf-8")).hexdigest()
+            if digest in seen_hashes:
+                continue
+            seen_hashes.add(digest)
+            deduped_sources.append(source)
+
+        if len(deduped_sources) < 2:
             return None
 
-        combined = "\n\n---\n\n".join(raw_texts)
+        combined = "\n\n---\n\n".join(source.content for source in deduped_sources)
         content_hash = get_content_hash(combined)
         skill_id = to_skill_id(skill_name)
 
@@ -476,14 +634,19 @@ class SkillTemplatePipeline:
         if template is None:
             return None
         template["skill_id"] = skill_id
-        valid, _reason = validate_template(template)
+        valid, reason = validate_template(template)
         if not valid:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Template validation failed for '{skill_name}': {reason}")
+            logger.debug(f"Invalid template: {json.dumps(template)[:500]}")
             return None
 
         version = hashlib.md5(json.dumps(template, sort_keys=True).encode("utf-8")).hexdigest()[:8]
         result = StructuredTemplateResult(template=template, content_hash=content_hash, version=version)
         self._cache[skill_id] = result
         self._store_in_faiss(result, skill_name)
+        await self._index_sources_in_pgvector(skill_id, deduped_sources)
         return result
 
     async def build_with_fallback(self, skill_name: str) -> StructuredTemplateResult | None:

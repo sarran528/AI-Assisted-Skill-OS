@@ -29,7 +29,7 @@ class SkillResearchRepository:
             sqlalchemy.exc.IntegrityError: If FK or unique constraints violated
         """
         model = SkillResearchObjectModel(
-            user_id=obj.user_id,
+            user_id=str(obj.user_id),
             skill_id=obj.skill_id,
             profile_version=obj.profile_version,
             payload=obj.model_dump(mode="json"),
