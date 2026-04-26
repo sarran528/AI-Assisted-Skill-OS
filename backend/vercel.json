@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "main.py"
+    },
+    {
+      "source": "/health",
+      "destination": "main.py"
+    }
+  ]
+}

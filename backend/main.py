@@ -15,6 +15,19 @@ backend_root = Path(__file__).resolve().parent
 if str(backend_root.parent) not in sys.path:
     sys.path.insert(0, str(backend_root.parent))
 
+# Vercel Root Fix: If 'backend' is the root, 'import backend' might fail.
+# We map the current directory to 'sys.modules["backend"]' to fix this.
+try:
+    import backend
+except ImportError:
+    import sys
+    import types
+    backend_mock = types.ModuleType("backend")
+    backend_mock.__path__ = [str(backend_root)]
+    sys.modules["backend"] = backend_mock
+    # Re-import to ensure it's available
+    import backend
+
 from backend.api.router import api_router
 from backend.user.router import router as user_router
 from backend.shared.config import settings

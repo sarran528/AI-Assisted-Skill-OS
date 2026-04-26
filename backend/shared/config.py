@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_storage_bucket: str = ""
-    cors_allowed_origins: str = "http://localhost:3000"
+    cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
 
 
 settings = Settings()
