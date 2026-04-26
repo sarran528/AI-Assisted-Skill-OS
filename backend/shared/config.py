@@ -43,8 +43,8 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
     embedding_batch_size: int = 100
     local_embedding_model: str = "all-MiniLM-L6-v2"
-    faiss_index_path: str = "backend/data/faiss/skill_templates.index"
-    faiss_metadata_path: str = "backend/data/faiss/skill_templates.meta.json"
+    faiss_index_path: str = str(Path(__file__).resolve().parents[1] / "data" / "faiss" / "skill_templates.index")
+    faiss_metadata_path: str = str(Path(__file__).resolve().parents[1] / "data" / "faiss" / "skill_templates.meta.json")
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_storage_bucket: str = ""

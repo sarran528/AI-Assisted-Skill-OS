@@ -1,4 +1,4 @@
-import json
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -8,6 +8,12 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
+
+# Ensure the parent directory is in sys.path so 'import backend' works
+# regardless of whether you run from the root or inside the backend folder.
+backend_root = Path(__file__).resolve().parent
+if str(backend_root.parent) not in sys.path:
+    sys.path.insert(0, str(backend_root.parent))
 
 from backend.api.router import api_router
 from backend.user.router import router as user_router
@@ -62,7 +68,9 @@ def create_app() -> FastAPI:
 
     @app.get("/.well-known/jwks.json")
     async def well_known_jwks() -> dict:
-        jwks_path = Path(__file__).resolve().parents[1] / ".well-known" / "jwks.json"
+        import json
+        # Look inside the backend folder for .well-known
+        jwks_path = Path(__file__).resolve().parent / ".well-known" / "jwks.json"
         if jwks_path.exists():
             return json.loads(jwks_path.read_text(encoding="utf-8"))
         return {"keys": []}
