@@ -70,6 +70,17 @@ def _map_level_id(level_id: str | int) -> int:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_level_id")
 
 
+def _normalize_submission_scales(submission: AssessmentSubmission) -> AssessmentSubmission:
+    """Normalize mixed frontend metric scales before persistence.
+
+    Some clients send accuracy in [0,1] while schema expects [0,100].
+    Convert it once here so DB stores a consistent raw metric format.
+    """
+    if submission.metrics.accuracy <= 1.0:
+        submission.metrics.accuracy = float(submission.metrics.accuracy) * 100.0
+    return submission
+
+
 @router.post("/submit", response_model=AssessmentResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def submit_assessment(
@@ -130,6 +141,10 @@ async def submit_assessment(
             dropout=int(payload.get("dropout_depth_index", 0)),
             retry=int(payload.get("retry_depth", 0)),
             recovery=float(payload.get("recovery_slope", 0)),
+            score=int(payload.get("score", 0)),
+            lives_consumed=3 - int(payload.get("lives_remaining", 3)),
+            attempts_taken=1 + int(payload.get("retry_depth", 0)),
+            time_taken=float(payload.get("mean_response_time", 0)),
         )
         time_constraint = RawTimeConstraint(
             available_hours_per_week=float(payload.get("available_hours_per_week", 0)),
@@ -140,9 +155,11 @@ async def submit_assessment(
             level=level,
             metrics=raw_metrics,
             time_constraint=time_constraint,
+            score=int(payload.get("score", 0)),
         )
     else:
         submission = AssessmentSubmission.model_validate(payload)
+    submission = _normalize_submission_scales(submission)
 
     user_id = current_user.user.id
     session_id = submission.session_id
@@ -151,8 +168,8 @@ async def submit_assessment(
     if session_id is not None:
         session = await db_session.scalar(
             select(AssessmentSession)
-            .where(AssessmentSession.session_id == session_id)
-            .where(AssessmentSession.user_id == user_id)
+            .where(AssessmentSession.session_id == str(session_id))
+            .where(AssessmentSession.user_id == str(user_id))
         )
     else:
         session = await db_session.scalar(
@@ -165,18 +182,40 @@ async def submit_assessment(
     if session is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="assessment_session_required")
 
+    import logging
+    logging.info(f"Submitting level {submission.level} for session {session.session_id}")
+    
     submissions = dict(session.submissions or {})
-    submissions[str(submission.level)] = {
+    level_key = str(submission.level)
+    new_submission = {
         "level": submission.level,
         "metrics": submission.metrics.model_dump(),
         "time_constraint": submission.time_constraint.model_dump(),
+        "score": submission.score,
     }
+    existing_submission = submissions.get(level_key)
+    existing_score = int(existing_submission.get("score", 0)) if isinstance(existing_submission, dict) else 0
+
+    # Keep the best attempt per level so profile generation uses strongest run.
+    if existing_submission is None or int(submission.score) >= existing_score:
+        submissions[level_key] = new_submission
+
+    # Update cumulative score
+    total_score = sum(s.get("score", 0) for s in submissions.values())
+    session.score = total_score
 
     completed_levels = sorted({int(level) for level in submissions.keys()})
     session.submissions = submissions
     session.completed_levels = completed_levels
     session.updated_at = datetime.now(timezone.utc)
+    
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(session, "submissions")
+    flag_modified(session, "completed_levels")
+    
+    logging.info(f"Session updated. Levels completed: {completed_levels}. Committing...")
     await db_session.commit()
+    logging.info("Commit successful")
 
     return AssessmentResponse(
         session_id=session.session_id,
@@ -200,47 +239,54 @@ async def complete_assessment(
 
     try:
         session_uuid = session_id if isinstance(session_id, UUID) else UUID(session_id)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_session_id")
+        user_id = current_user.user.id
+        
+        session = await db_session.scalar(
+            select(AssessmentSession)
+            .where(AssessmentSession.session_id == str(session_uuid))
+            .where(AssessmentSession.user_id == str(user_id))
+        )
+        if session is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="assessment_session_not_found")
 
-    user_id = current_user.user.id
-    session = await db_session.scalar(
-        select(AssessmentSession)
-        .where(AssessmentSession.session_id == session_uuid)
-        .where(AssessmentSession.user_id == user_id)
-    )
-    if session is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="assessment_session_not_found")
+        completed_levels = list(session.completed_levels or [])
+        if len(completed_levels) < 6:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="assessment_incomplete")
 
-    completed_levels = list(session.completed_levels or [])
-    if len(completed_levels) < 6:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="assessment_incomplete")
+        submissions_payload = list((session.submissions or {}).values())
+        submissions = [AssessmentSubmission.model_validate(item) for item in submissions_payload]
 
-    submissions_payload = list((session.submissions or {}).values())
-    submissions = [AssessmentSubmission.model_validate(item) for item in submissions_payload]
+        profile = await process_assessment_levels(
+            db_session=db_session,
+            user_id=user_id,
+            submissions=submissions,
+            session_id=session.session_id,
+        )
 
-    profile = await process_assessment_levels(
-        db_session=db_session,
-        user_id=user_id,
-        submissions=submissions,
-        session_id=session.session_id,
-    )
+        session.status = "completed"
+        session.updated_at = datetime.now(timezone.utc)
+        await db_session.commit()
 
-    session.status = "completed"
-    session.updated_at = datetime.now(timezone.utc)
-    await db_session.commit()
+        return ProfileResponse(
+            profile_id=profile.id or uuid4(),
+            user_id=profile.user_id or user_id,
+            version=profile.version,
+            cognitive_capacity=profile.profile_vector.cognitive_capacity,
+            attention_stability=profile.profile_vector.attention_stability,
+            learning_tolerance=profile.profile_vector.learning_tolerance,
+            motor_baseline=profile.profile_vector.motor_baseline,
+            stress_resilience=profile.profile_vector.stress_resilience,
+            time_constraint=profile.profile_vector.time_constraint,
+        )
 
-    return ProfileResponse(
-        profile_id=profile.id or uuid4(),
-        user_id=profile.user_id or user_id,
-        version=profile.version,
-        cognitive_capacity=profile.profile_vector.cognitive_capacity,
-        attention_stability=profile.profile_vector.attention_stability,
-        learning_tolerance=profile.profile_vector.learning_tolerance,
-        motor_baseline=profile.profile_vector.motor_baseline,
-        stress_resilience=profile.profile_vector.stress_resilience,
-        time_constraint=profile.profile_vector.time_constraint,
-    )
+    except (TypeError, ValueError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid_request: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"Error in complete_assessment: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/status")
@@ -263,6 +309,8 @@ async def assessment_status(
         select(CognitiveProfile.id).where(CognitiveProfile.user_id == user_id)
     )
     return {
+        "session_id": str(session.session_id) if session else None,
+        "status": session.status if session else "not_started",
         "levels_completed": completed_levels,
         "profile_active": profile_exists is not None,
     }

@@ -105,6 +105,7 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
   const [currentRule, setCurrentRule] = useState<Rule>(RULES[0]);
   const [currentNumber, setCurrentNumber] = useState(10);
   const [timeLeft, setTimeLeft] = useState(8000);
+  const [roundPoints, setRoundPoints] = useState(0);
 
   // Refs for timer-critical state
   const pressesRef = useRef(0);
@@ -218,30 +219,36 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
     perRoundPresses.current.push(pressesRef.current);
     perRoundExpected.current.push(ruleRef.current.expectedPresses(numberRef.current));
 
+    let earned = 0;
     if (isCorrect) {
-      let points = 30;
-      if (timeLeftRef.current < 2000) points += 20;
-      setScore(prev => prev + points);
+      earned = 30;
+      // Bonus for speed (more than half the time remaining)
+      const initialTime = getTimeWindow(roundRef.current);
+      if (timeLeftRef.current > initialTime / 2) earned += 20;
+      setScore(prev => prev + earned);
     } else {
       lifeLossRounds.current.push(roundRef.current);
       const nextLives = livesRef.current - 1;
       setLives(nextLives);
-      if (nextLives <= 0) {
-        setTimeout(onFail, 500);
-        return;
-      }
+      livesRef.current = nextLives; // Immediate update for logic
     }
 
+    setRoundPoints(earned);
     setPhase('roundResult');
 
     setTimeout(() => {
+      if (livesRef.current <= 0) {
+        onFail();
+        return;
+      }
+
       if (roundRef.current >= 10) {
         finishGame();
       } else {
         setRound(prev => prev + 1);
         beginRound();
       }
-    }, 800);
+    }, 1500); // Increased from 800ms to 1.5s
   };
 
   const finishGame = () => {
@@ -292,7 +299,9 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
       recovery_slope: recoveryAttempts > 0 ? recoverySuccess / recoveryAttempts : 1,
     };
 
-    onComplete(signals, score, livesRef.current);
+    const livesBonus = livesRef.current * 50;
+    const finalScore = score + livesBonus;
+    onComplete(signals, finalScore, livesRef.current);
   };
 
   if (phase === 'rules') {
@@ -377,16 +386,32 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
               {currentNumber}
             </div>
 
-            <button
-              className="neo-brutalist-button neo-brutalist-button--primary"
-              style={{ fontSize: '28px', padding: '28px 64px', marginBottom: '24px' }}
-              onClick={handlePress}
-            >
-              [ PRESS ]
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+              <button
+                className="neo-brutalist-button neo-brutalist-button--primary"
+                style={{ fontSize: '28px', padding: '28px 64px', width: '100%' }}
+                onClick={handlePress}
+              >
+                [ PRESS ]
+              </button>
 
-            <div style={{ fontSize: '18px', fontWeight: 900 }}>
-              PRESSES: {pressDisplay}
+              <button
+                className="neo-brutalist-button"
+                style={{ 
+                  fontSize: '18px', 
+                  padding: '12px 24px', 
+                  background: '#0a0a0a', 
+                  color: 'white',
+                  width: 'fit-content'
+                }}
+                onClick={evaluateRound}
+              >
+                SUBMIT ROUND
+              </button>
+            </div>
+
+            <div style={{ fontSize: '24px', fontWeight: 900, marginTop: '16px' }}>
+              CURRENT PRESSES: {pressDisplay}
             </div>
           </>
         )}
@@ -402,7 +427,12 @@ export const PressureTest: React.FC<PressureTestProps> = ({ onComplete, onFail }
             >
               {lastResult ? '✓ CORRECT' : '✗ WRONG'}
             </div>
-            <p style={{ marginTop: '16px', fontSize: '16px' }}>
+            
+            <div style={{ fontSize: '24px', fontWeight: 900, marginTop: '8px' }}>
+              {lastResult ? `+${roundPoints} POINTS` : '0 POINTS'}
+            </div>
+
+            <p style={{ marginTop: '24px', fontSize: '14px', opacity: 0.8 }}>
               RULE: {currentRule.label} | NUMBER: {currentNumber} | YOUR PRESSES: {pressDisplay} | TARGET: {targetPresses}
             </p>
           </div>

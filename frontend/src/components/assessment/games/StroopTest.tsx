@@ -136,6 +136,9 @@ export const StroopTest: React.FC<StroopTestProps> = ({ onComplete, onFail }) =>
     const secondHalfAcc = results.current.slice(5).filter(r => r).length / 5;
     const performance_decay = Math.max(0, firstHalfAcc - secondHalfAcc);
 
+    const livesBonus = lives * 50;
+    const finalScore = score + livesBonus;
+
     const signals: BehavioralSignals = {
       accuracy,
       mean_response_time: mean_rt,
@@ -146,7 +149,7 @@ export const StroopTest: React.FC<StroopTestProps> = ({ onComplete, onFail }) =>
       recovery_slope: 0
     };
 
-    onComplete(signals, score, lives);
+    onComplete(signals, finalScore, lives);
   };
 
   if (gameState === 'rules') {

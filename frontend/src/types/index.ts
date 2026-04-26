@@ -39,6 +39,8 @@ export interface LevelSubmissionPayload {
     available_hours_per_week: number;
     preferred_session_length: number;
   };
+  score: number;
+  lives_remaining: number;
 }
 
 export interface SkillItem {

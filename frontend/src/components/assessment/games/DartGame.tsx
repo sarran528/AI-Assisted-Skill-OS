@@ -181,7 +181,9 @@ export const DartGame: React.FC<DartGameProps> = ({ onComplete, onFail }) => {
       dropout_depth_index: 0,
       recovery_slope: motor_baseline
     };
-    onComplete(signals, score, lives);
+    const livesBonus = lives * 100;
+    const finalScore = score + livesBonus;
+    onComplete(signals, finalScore, lives);
   };
 
   if (gameState === 'rules') {

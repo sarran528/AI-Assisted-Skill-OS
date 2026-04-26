@@ -13,8 +13,12 @@ export async function submitAssessmentLevel(payload: LevelSubmissionPayload): Pr
 
 export async function completeAssessment(payload: {
   session_id: string;
-  completed_levels: number[];
 }): Promise<unknown> {
   const response = await axiosClient.post("/assessment/complete", payload);
+  return response.data;
+}
+
+export async function getAssessmentStatus(): Promise<any> {
+  const response = await axiosClient.get("/assessment/status");
   return response.data;
 }

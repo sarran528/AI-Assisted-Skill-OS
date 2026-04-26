@@ -175,7 +175,9 @@ export const PuzzleGame: React.FC<PuzzleGameProps> = ({ onComplete, onFail }) =>
       recovery_slope: 0,
     };
 
-    onComplete(signals, score, lives);
+    const livesBonus = lives * 40;
+    const finalScore = score + livesBonus;
+    onComplete(signals, finalScore, lives);
   };
 
   if (gameState === 'rules') {

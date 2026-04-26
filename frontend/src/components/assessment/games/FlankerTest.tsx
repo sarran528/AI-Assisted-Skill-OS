@@ -129,7 +129,9 @@ export const FlankerTest: React.FC<FlankerTestProps> = ({ onComplete, onFail }) 
       recovery_slope: 0
     };
 
-    onComplete(signals, score, lives);
+    const livesBonus = lives * 50;
+    const finalScore = score + livesBonus;
+    onComplete(signals, finalScore, lives);
   };
 
   if (gameState === 'rules') {

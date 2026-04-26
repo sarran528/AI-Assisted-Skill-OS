@@ -121,7 +121,9 @@ export const TimeQuestions: React.FC<TimeQuestionsProps> = ({ onComplete, onFail
       recovery_slope: 0
     };
 
-    onComplete(signals, score, lives, timeSignals);
+    const livesBonus = lives * 20;
+    const finalScore = score + livesBonus;
+    onComplete(signals, finalScore, lives, timeSignals);
   };
 
   if (gameState === 'rules') {

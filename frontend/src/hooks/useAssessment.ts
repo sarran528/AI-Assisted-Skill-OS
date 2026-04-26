@@ -1,6 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { completeAssessment, startAssessment, submitAssessmentLevel } from "../api/assessment";
+import { completeAssessment, startAssessment, submitAssessmentLevel, getAssessmentStatus } from "../api/assessment";
 import type { LevelSubmissionPayload } from "../types";
 
 export function useStartAssessment() {
@@ -13,6 +13,13 @@ export function useSubmitLevel() {
 
 export function useCompleteAssessment() {
   return useMutation({
-    mutationFn: (payload: { session_id: string; completed_levels: number[] }) => completeAssessment(payload),
+    mutationFn: (payload: { session_id: string }) => completeAssessment(payload),
+  });
+}
+
+export function useAssessmentStatus() {
+  return useQuery({
+    queryKey: ["assessmentStatus"],
+    queryFn: () => getAssessmentStatus(),
   });
 }

@@ -50,39 +50,46 @@ def compute_profile_vector(signals: NormalizedSignals) -> ProfileVector:
     cognitive_capacity = _clamp(
         0.35 * signals.n_accuracy +
         0.20 * signals.n_latency +
-        0.15 * signals.n_latency_stability +
-        0.10 * signals.n_decay_inverse +
-        0.20 * signals.n_recovery
+        0.20 * signals.n_latency_stability +
+        0.15 * signals.n_decay_inverse +
+        0.10 * signals.n_dropout
     )
     
     # Dimension 2: Attention Stability
     # Sustained focus and consistency in performance
     attention_stability = _clamp(
-        0.50 * signals.n_latency_stability +
-        0.50 * signals.n_decay_inverse
+        0.30 * signals.n_accuracy +
+        0.30 * signals.n_latency_stability +
+        0.20 * signals.n_decay_inverse +
+        0.20 * signals.n_dropout
     )
     
     # Dimension 3: Learning Tolerance
     # Ability to handle difficulty, retry, and recover from errors
-    # Note: n_dropout and n_retry already inverted (1 - raw/max)
     learning_tolerance = _clamp(
-        0.40 * signals.n_dropout +
-        0.40 * signals.n_retry +
-        0.20 * signals.n_recovery
+        0.30 * signals.n_retry +
+        0.25 * signals.n_dropout +
+        0.20 * signals.n_decay_inverse +
+        0.15 * signals.n_recovery +
+        0.10 * signals.n_latency_stability
     )
     
     # Dimension 4: Motor Baseline
     # Physical precision, speed, and motor control stability
     motor_baseline = _clamp(
-        0.60 * signals.n_latency +
-        0.40 * signals.n_latency_stability
+        0.40 * signals.n_accuracy +
+        0.30 * signals.n_latency +
+        0.30 * signals.n_latency_stability
     )
     
     # Dimension 5: Stress Resilience
     # Performance under pressure and recovery capability
     stress_resilience = _clamp(
-        0.60 * signals.n_recovery +
-        0.40 * signals.n_decay_inverse
+        0.30 * signals.n_accuracy +
+        0.25 * signals.n_latency_stability +
+        0.20 * signals.n_recovery +
+        0.15 * signals.n_dropout +
+        0.10 * signals.n_decay_inverse
     )
     
     # Dimension 6: Time Constraint

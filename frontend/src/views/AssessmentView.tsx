@@ -3,6 +3,8 @@ import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useNavigationStore } from "../store/navigationStore";
 import { useAssessmentStore, GAME_IDS } from "../stores/assessmentStore";
+import { useStartAssessment, useCompleteAssessment, useAssessmentStatus } from "../hooks/useAssessment";
+import { useEffect } from "react";
 
 const LEVELS = [
   { id: 1, name: "Stroop Test", tag: "Executive Control", description: "Measures inhibition and impulse control." },
@@ -15,11 +17,42 @@ const LEVELS = [
 
 export function AssessmentView() {
   const navigate = useNavigate();
-  const { games, allLevelsComplete } = useAssessmentStore();
+  const { games, sessionId, setSessionId } = useAssessmentStore();
   const { setProfileState, setSystemState } = useNavigationStore();
 
-  const completedCount = GAME_IDS.filter(id => games[id].completed).length;
-  const canComputeProfile = allLevelsComplete();
+  const startMutation = useStartAssessment();
+  const completeMutation = useCompleteAssessment();
+  const { data: statusData, isLoading: statusLoading } = useAssessmentStatus();
+
+  useEffect(() => {
+    if (statusLoading) return;
+    
+    if (statusData?.session_id && statusData?.status === "in_progress") {
+      if (sessionId !== statusData.session_id) {
+        setSessionId(statusData.session_id);
+      }
+    } else if (!sessionId && !startMutation.isPending && !startMutation.isError) {
+      startMutation.mutate(undefined, {
+        onSuccess: (data) => {
+          if (data && 'session_id' in data) {
+            setSessionId(data.session_id as string);
+          }
+        }
+      });
+    }
+  }, [sessionId, statusData, statusLoading, startMutation, setSessionId]);
+
+  const completedCount = Array.isArray(statusData?.levels_completed)
+    ? statusData.levels_completed.length
+    : GAME_IDS.filter((id) => games[id].completed).length;
+  const localSubmittedCount = GAME_IDS.filter((id) => games[id].completed).length;
+  const backendReadyToCompute =
+    statusData?.status === "in_progress" &&
+    Array.isArray(statusData?.levels_completed) &&
+    statusData.levels_completed.length === 6;
+  const canComputeProfile = Boolean(
+    sessionId && backendReadyToCompute
+  );
 
   const getStatusBadge = (attempts: number) => {
     if (attempts === 0) return { label: "NOT ATTEMPTED", class: "neo-brutalist-status-badge--grey" };
@@ -30,36 +63,42 @@ export function AssessmentView() {
   };
 
   const handleComputeProfile = () => {
-    // This triggers the pipeline normalization. 
-    // For now, we set a placeholder profile as per previous logic, 
-    // but in a real app this would call the backend with the collected signals.
-    setProfileState({
-      isActive: true,
-      dimensions: {
-        cognitive_capacity: 0.74,
-        attention_stability: 0.61,
-        learning_tolerance: 0.58,
-        motor_baseline: 0.69,
-        stress_resilience: 0.72,
-        time_constraint: 0.45,
-      },
+    if (!sessionId) return;
+
+    completeMutation.mutate({
+      session_id: sessionId,
+    }, {
+      onSuccess: (data: any) => {
+        setProfileState({
+          isActive: true,
+          dimensions: {
+            cognitive_capacity: data.cognitive_capacity,
+            attention_stability: data.attention_stability,
+            learning_tolerance: data.learning_tolerance,
+            motor_baseline: data.motor_baseline,
+            stress_resilience: data.stress_resilience,
+            time_constraint: data.time_constraint,
+          },
+        });
+        setSystemState("profile_active");
+        navigate("/");
+      }
     });
-    setSystemState("profile_active");
-    navigate("/");
   };
 
   return (
     <main className="neo-brutalist" style={{ padding: "2rem", minHeight: "100vh" }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 className="neo-brutalist-title">ASSESSMENT SUITE</h1>
-        {canComputeProfile && (
-          <button 
-            className="neo-brutalist-button neo-brutalist-button--primary"
-            onClick={handleComputeProfile}
-          >
-            COMPUTE PROFILE
-          </button>
-        )}
+        <button
+          className="neo-brutalist-button neo-brutalist-button--primary"
+          onClick={handleComputeProfile}
+          disabled={!canComputeProfile || completeMutation.isPending}
+          title={!canComputeProfile ? "Submit all 6 levels first" : undefined}
+          style={!canComputeProfile ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+        >
+          {completeMutation.isPending ? "COMPUTING..." : "COMPUTE ASSESSMENT"}
+        </button>
       </div>
 
       <div className="neo-brutalist-card" style={{ marginBottom: "2rem" }}>

@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timezone
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.assessment.normalization import normalize_all
@@ -18,12 +19,14 @@ from backend.assessment.parameters import compute_learning_parameters
 from backend.assessment.profile_vector import compute_profile_vector
 from backend.assessment.schemas import (
     AssessmentSubmission,
-    CognitiveProfile,
+    CognitiveProfile as CognitiveProfileSchema,
     LearningParameters,
     NormalizedSignals,
     ProfileVector,
 )
 from backend.shared.audit import log_audit_event
+from backend.shared.db.models import CognitiveProfile as CognitiveProfileModel
+from backend.shared.db.models import LearningParameter as LearningParameterModel
 from backend.shared.errors import BusinessError
 
 
@@ -31,7 +34,7 @@ async def process_assessment(
     db_session: AsyncSession | None,
     user_id: UUID,
     submission: AssessmentSubmission,
-) -> CognitiveProfile:
+) -> CognitiveProfileSchema:
     """Process a complete assessment submission end-to-end.
     
     Pipeline:
@@ -53,6 +56,15 @@ async def process_assessment(
         BusinessError: If validation or persistence fails.
     """
     try:
+        version = 1
+        if db_session is not None:
+            latest_version = await db_session.scalar(
+                select(func.max(CognitiveProfileModel.version)).where(
+                    CognitiveProfileModel.user_id == str(user_id)
+                )
+            )
+            version = int(latest_version or 0) + 1
+
         # Step 1: Normalize all signals
         signals = normalize_all(submission.metrics, submission.time_constraint)
         
@@ -64,9 +76,34 @@ async def process_assessment(
         params = compute_learning_parameters(profile_vector, skill_id="generic")
         
         # Step 4: Create profile record for database
-        profile = CognitiveProfile(
+        profile_model = CognitiveProfileModel(
+            user_id=str(user_id),
+            version=version,
+            cognitive_capacity=profile_vector.cognitive_capacity,
+            attention_stability=profile_vector.attention_stability,
+            learning_tolerance=profile_vector.learning_tolerance,
+            motor_baseline=profile_vector.motor_baseline,
+            stress_resilience=profile_vector.stress_resilience,
+            time_constraint=profile_vector.time_constraint,
+            raw_signals=signals.model_dump(),
+        )
+
+        if db_session is not None:
+            db_session.add(profile_model)
+            await db_session.flush()
+
+            params_model = LearningParameterModel(
+                profile_id=profile_model.id,
+                skill_id="generic",
+                **params.model_dump()
+            )
+            db_session.add(params_model)
+
+        # Step 5: Create schema for response
+        profile = CognitiveProfileSchema(
+            id=UUID(profile_model.id) if profile_model.id else None,
             user_id=user_id,
-            version=1,  # In production, query for max version and increment
+            version=version,
             profile_vector=profile_vector,
             raw_signals=signals,
             created_at=datetime.now(timezone.utc).isoformat(),
@@ -113,27 +150,77 @@ async def process_assessment_levels(
     user_id: UUID,
     submissions: list[AssessmentSubmission],
     session_id: UUID | None = None,
-) -> CognitiveProfile:
+) -> CognitiveProfileSchema:
     """Process multiple assessment submissions into a single profile.
 
     Aggregates normalized signals across all levels, computes the profile
     vector, and derives learning parameters.
     """
     try:
+        import logging
+        logging.info(f"Starting process_assessment_levels for session {session_id}")
+
+        version = 1
+        if db_session is not None:
+            latest_version = await db_session.scalar(
+                select(func.max(CognitiveProfileModel.version)).where(
+                    CognitiveProfileModel.user_id == str(user_id)
+                )
+            )
+            version = int(latest_version or 0) + 1
+        
+        logging.info(f"Normalizing {len(submissions)} submissions")
         normalized = [normalize_all(item.metrics, item.time_constraint) for item in submissions]
+        
+        logging.info("Aggregating signals")
         aggregated = _average_signals(normalized)
+        
+        logging.info("Computing profile vector")
         profile_vector = compute_profile_vector(aggregated)
+        
+        logging.info("Computing learning parameters")
         params = compute_learning_parameters(profile_vector, skill_id="generic")
 
-        profile = CognitiveProfile(
+        logging.info("Creating CognitiveProfileModel")
+        profile_model = CognitiveProfileModel(
+            user_id=str(user_id),
+            version=version,
+            cognitive_capacity=profile_vector.cognitive_capacity,
+            attention_stability=profile_vector.attention_stability,
+            learning_tolerance=profile_vector.learning_tolerance,
+            motor_baseline=profile_vector.motor_baseline,
+            stress_resilience=profile_vector.stress_resilience,
+            time_constraint=profile_vector.time_constraint,
+            raw_signals=aggregated.model_dump(),
+        )
+
+        if db_session is not None:
+            logging.info("Adding profile to DB session")
+            db_session.add(profile_model)
+            logging.info("Flushing DB session")
+            await db_session.flush()
+
+            logging.info("Creating LearningParameterModel")
+            params_model = LearningParameterModel(
+                profile_id=profile_model.id,
+                skill_id="generic",
+                **params.model_dump()
+            )
+            logging.info("Adding parameters to DB session")
+            db_session.add(params_model)
+
+        logging.info("Creating schema for response")
+        profile = CognitiveProfileSchema(
+            id=UUID(profile_model.id) if profile_model.id else None,
             user_id=user_id,
-            version=1,
+            version=version,
             profile_vector=profile_vector,
             raw_signals=aggregated,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         if db_session is not None:
+            logging.info("Logging audit event")
             await log_audit_event(
                 db_session=db_session,
                 user_id=str(user_id),
@@ -150,6 +237,7 @@ async def process_assessment_levels(
                 },
             )
 
+        logging.info("process_assessment_levels completed successfully")
         return profile
     except ValueError as e:
         raise BusinessError(f"Assessment processing failed: {str(e)}") from e

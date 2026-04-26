@@ -10,12 +10,19 @@ class RawMetrics(BaseModel):
     """Raw behavioral signals from a single assessment level."""
     
     accuracy: float = Field(..., ge=0, le=100, description="Accuracy percentage 0-100")
-    expected_time: float = Field(..., ge=0, le=10, description="Expected time in seconds 0-10")
-    latency_stability: float = Field(..., ge=0, le=25, description="Variance in latency 0-25")
+    expected_time: float = Field(..., ge=0, le=300, description="Expected time in seconds 0-300")
+    latency_stability: float = Field(..., ge=0, le=100000, description="Variance in latency 0-100000")
     decay_inverse: float = Field(..., ge=0, le=1, description="Inverse decay 0-1")
     dropout: int = Field(..., ge=0, le=10, description="Dropout attempts 0-10")
     retry: int = Field(..., ge=0, le=10, description="Retry attempts 0-10")
     recovery: float = Field(..., ge=0, le=1, description="Recovery rate 0-1")
+    
+    # Explicit fields requested by user
+    # Explicit fields requested by user (optional for backward compatibility)
+    score: int = Field(0, description="Game score/points")
+    lives_consumed: int = Field(0, description="Number of lives lost")
+    attempts_taken: int = Field(1, description="Total attempts including retries")
+    time_taken: float = Field(0.0, description="Total time taken in seconds")
 
 
 class RawTimeConstraint(BaseModel):
@@ -31,6 +38,7 @@ class AssessmentSubmission(BaseModel):
     level: int = Field(..., ge=1, le=6, description="Assessment level 1-6")
     metrics: RawMetrics
     time_constraint: RawTimeConstraint
+    score: int = Field(0, ge=0, description="Score earned in this level")
 
 
 class NormalizedSignals(BaseModel):

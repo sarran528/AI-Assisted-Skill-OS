@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { getAttemptLabel } from '../utils/attemptLabel';
 
 export interface BehavioralSignals {
@@ -32,7 +33,9 @@ export const GAME_IDS = [1, 2, 3, 4, 5, 6] as const;
 export type GameId = typeof GAME_IDS[number];
 
 interface AssessmentStore {
+  sessionId: string | null;
   games: Record<GameId, GameState>;
+  setSessionId: (id: string) => void;
   finishLevel: (
     gameId: GameId,
     signals: BehavioralSignals,
@@ -43,6 +46,7 @@ interface AssessmentStore {
   ) => void;
   resetAssessment: () => void;
   allLevelsComplete: () => boolean;
+  getCompletedLevelIds: () => number[];
 }
 
 const initialGameState = (): GameState => ({
@@ -62,38 +66,10 @@ const initialGameState = (): GameState => ({
   },
 });
 
-export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
-  games: {
-    1: initialGameState(),
-    2: initialGameState(),
-    3: initialGameState(),
-    4: initialGameState(),
-    5: initialGameState(),
-    6: initialGameState(),
-  },
-  finishLevel: (gameId, signals, timeSignals, livesRemaining, score, completed) => {
-    set((state) => {
-      const game = state.games[gameId];
-      const newAttempts = game.attempts + 1;
-      return {
-        games: {
-          ...state.games,
-          [gameId]: {
-            ...game,
-            attempts: newAttempts,
-            attemptLabel: getAttemptLabel(newAttempts),
-            bestScore: Math.max(game.bestScore, score),
-            lastLivesRemaining: livesRemaining,
-            completed: game.completed || completed,
-            signals: { ...signals },
-            ...(timeSignals ? { timeSignals: { ...timeSignals } } : {}),
-          },
-        },
-      };
-    });
-  },
-  resetAssessment: () => {
-    set({
+export const useAssessmentStore = create<AssessmentStore>()(
+  persist(
+    (set, get) => ({
+      sessionId: null,
       games: {
         1: initialGameState(),
         2: initialGameState(),
@@ -102,11 +78,52 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         5: initialGameState(),
         6: initialGameState(),
       },
-    });
-  },
-  allLevelsComplete: () => {
-    const { games } = get();
-    // ProfileVector computation relies on all levels being completed at least once
-    return GAME_IDS.every((id) => games[id].attempts > 0);
-  },
-}));
+      setSessionId: (id) => set({ sessionId: id }),
+      finishLevel: (gameId, signals, timeSignals, livesRemaining, score, completed) => {
+        set((state) => {
+          const game = state.games[gameId];
+          const newAttempts = game.attempts + 1;
+          return {
+            games: {
+              ...state.games,
+              [gameId]: {
+                ...game,
+                attempts: newAttempts,
+                attemptLabel: getAttemptLabel(newAttempts),
+                bestScore: Math.max(game.bestScore, score),
+                lastLivesRemaining: livesRemaining,
+                completed: game.completed || completed,
+                signals: { ...signals },
+                ...(timeSignals ? { timeSignals: { ...timeSignals } } : {}),
+              },
+            },
+          };
+        });
+      },
+      resetAssessment: () => {
+        set({
+          sessionId: null,
+          games: {
+            1: initialGameState(),
+            2: initialGameState(),
+            3: initialGameState(),
+            4: initialGameState(),
+            5: initialGameState(),
+            6: initialGameState(),
+          },
+        });
+      },
+      allLevelsComplete: () => {
+        const { games } = get();
+        return GAME_IDS.every((id) => games[id].attempts > 0);
+      },
+      getCompletedLevelIds: () => {
+        const { games } = get();
+        return GAME_IDS.filter((id) => games[id].completed).map((id) => Number(id));
+      },
+    }),
+    {
+      name: 'assessment-storage',
+    }
+  )
+);
