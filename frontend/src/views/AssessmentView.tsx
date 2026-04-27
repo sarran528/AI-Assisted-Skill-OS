@@ -26,6 +26,25 @@ export function AssessmentView() {
 
   useEffect(() => {
     if (statusLoading) return;
+    if (!statusData?.profile_active || !statusData?.profile) return;
+
+    setProfileState({
+      isActive: true,
+      dimensions: {
+        cognitive_capacity: Number(statusData.profile.cognitive_capacity ?? 0),
+        attention_stability: Number(statusData.profile.attention_stability ?? 0),
+        learning_tolerance: Number(statusData.profile.learning_tolerance ?? 0),
+        motor_baseline: Number(statusData.profile.motor_baseline ?? 0),
+        stress_resilience: Number(statusData.profile.stress_resilience ?? 0),
+        time_constraint: Number(statusData.profile.time_constraint ?? 0),
+      },
+      learning_parameters: statusData.learning_parameters || null,
+    });
+    setSystemState("profile_active");
+  }, [statusData, statusLoading, setProfileState, setSystemState]);
+
+  useEffect(() => {
+    if (statusLoading) return;
     
     if (statusData?.session_id && statusData?.status === "in_progress") {
       if (sessionId !== statusData.session_id) {

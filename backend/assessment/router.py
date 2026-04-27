@@ -25,6 +25,19 @@ from backend.shared.rate_limit import limiter
 router = APIRouter(tags=["assessment"])
 
 
+def _serialize_learning_parameters(params: LearningParameter | None) -> dict | None:
+    if params is None:
+        return None
+
+    payload: dict[str, float | int] = {}
+    for field in LearningParameter.__table__.columns.keys():
+        if field in {"id", "profile_id", "skill_id", "created_at"}:
+            continue
+        value = getattr(params, field)
+        payload[field] = int(value) if isinstance(value, int) else float(value)
+    return payload
+
+
 @router.post("/start", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def start_assessment(
@@ -284,7 +297,7 @@ async def complete_assessment(
             motor_baseline=profile.motor_baseline,
             stress_resilience=profile.stress_resilience,
             time_constraint=profile.time_constraint,
-            learning_parameters=params.__dict__ if params else None
+            learning_parameters=_serialize_learning_parameters(params),
         )
 
     except (TypeError, ValueError) as e:
@@ -342,6 +355,6 @@ async def assessment_status(
             "stress_resilience": float(profile.stress_resilience),
             "time_constraint": float(profile.time_constraint),
         } if profile else None,
-        "learning_parameters": params.__dict__ if params else None
+        "learning_parameters": _serialize_learning_parameters(params),
     }
 

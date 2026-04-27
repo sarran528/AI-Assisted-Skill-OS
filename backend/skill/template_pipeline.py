@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import random
 import re
 import asyncio
@@ -22,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.shared.config import settings
 from backend.shared.db.models import RagChunk
+
+logger = logging.getLogger(__name__)
 
 REQUIRED_PHASES = ["fundamentals", "intermediate", "advanced", "application", "mastery"]
 NUMERIC_SIGNALS = ["%", "seconds", "count", "errors", "ms", "rate", ">=", "<=", "<", ">"]
@@ -565,9 +568,6 @@ class SkillTemplatePipeline:
         )
 
     async def structure_template_two_pass(self, skill_name: str, raw_content: str) -> dict[str, Any] | None:
-        import logging
-        logger = logging.getLogger(__name__)
-        
         pass1_payload = f"Skill: {skill_name}\n\nContent:\n{raw_content[:CONTENT_CAP]}"
         extracted = await self._structured_llm_call(system_prompt=PASS_1_PROMPT, content=pass1_payload, max_tokens=2000)
         if extracted is None:
@@ -636,8 +636,6 @@ class SkillTemplatePipeline:
         template["skill_id"] = skill_id
         valid, reason = validate_template(template)
         if not valid:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(f"Template validation failed for '{skill_name}': {reason}")
             logger.debug(f"Invalid template: {json.dumps(template)[:500]}")
             return None

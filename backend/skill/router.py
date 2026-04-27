@@ -2,6 +2,7 @@
 API routes for skill template management.
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +38,7 @@ from sqlalchemy import select
 from backend.shared.queue.tasks import generate_roadmap_task
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _flatten_template_constants(structure: dict, complexity_score: float) -> dict:

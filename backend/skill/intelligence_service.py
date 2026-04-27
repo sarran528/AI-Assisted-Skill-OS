@@ -87,16 +87,17 @@ class SkillIntelligenceService:
 
         # Log audit event
         await log_audit_event(
-            session=self.session,
-            user_id=user_id,
-            event_type="skill.research_generated",
+            self.session,
+            user_id=str(user_id),
+            action="skill.research_generated",
+            entity_type="skill",
+            entity_id=normalized_skill_id,
+            ip_address=ip_address,
             metadata={
-                "skill_id": normalized_skill_id,
                 "is_feasible": research_object.is_feasible,
                 "estimated_weeks": research_object.estimated_weeks,
                 "overall_risk": research_object.overall_risk,
             },
-            ip_address=ip_address,
         )
 
         logger.info(

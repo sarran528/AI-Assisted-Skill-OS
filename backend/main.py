@@ -28,9 +28,10 @@ def create_app() -> FastAPI:
     configure_logging()
     app = FastAPI(title="SkillOS", version="0.1.0")
     app.state.limiter = limiter
-    app.middleware("http")(request_id_middleware)
-    app.middleware("http")(auth_context_middleware)
-    app.add_middleware(SlowAPIMiddleware)
+    
+    # CRITICAL: Add CORS middleware FIRST (before other middleware)
+    # In Starlette, middleware added with add_middleware() is applied in REVERSE order
+    # So CORS must be added first to apply last in the chain
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allowed_origins.split(","),
@@ -38,6 +39,11 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
         allow_credentials=True,
     )
+    
+    # Then add other middleware
+    app.add_middleware(SlowAPIMiddleware)
+    app.middleware("http")(request_id_middleware)
+    app.middleware("http")(auth_context_middleware)
 
     @app.exception_handler(BusinessError)
     async def business_error_handler(_request: Request, exc: BusinessError) -> JSONResponse:

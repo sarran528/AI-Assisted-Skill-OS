@@ -1,0 +1,248 @@
+# IMPORTANT RATED CODE: COGNITIVE ASSESSMENT & LEARNING ENGINE
+
+This file contains the core algorithmic logic for Skill OS, specifically how user performance is "rated" 
+and converted into a personalized learning profile.
+
+---
+
+## 1. SIGNAL NORMALIZATION (Raw Metrics to [0,1] Range)
+Location: backend/assessment/normalization.py
+
+```python
+def normalize_latency(expected_time: float) -> float:
+    """Normalize latency (lower time is better). Formula: 1 - (time / 10)"""
+    return max(0.0, min(1.0, 1.0 - (expected_time / 10.0)))
+
+def normalize_dropout(dropout_attempts: int) -> float:
+    """Normalize dropout attempts (lower is better). Formula: 1 - (dropout / 10)"""
+    return max(0.0, min(1.0, 1.0 - (dropout_attempts / 10.0)))
+
+def normalize_retry(retry_attempts: int) -> float:
+    """Normalize retry attempts (lower is better). Formula: 1 - (retry / 10)"""
+    return max(0.0, min(1.0, 1.0 - (retry_attempts / 10.0)))
+```
+
+---
+
+## 2. COGNITIVE PROFILE COMPUTATION (6-Dimension Vector)
+Location: backend/assessment/profile_vector.py
+
+```python
+def compute_profile_vector(signals: NormalizedSignals) -> ProfileVector:
+    # Dimension 1: Cognitive Capacity
+    cognitive_capacity = _clamp(
+        0.35 * signals.n_accuracy +
+        0.20 * signals.n_latency +
+        0.20 * signals.n_latency_stability +
+        0.15 * signals.n_decay_inverse +
+        0.10 * signals.n_dropout
+    )
+    
+    # Dimension 3: Learning Tolerance
+    learning_tolerance = _clamp(
+        0.30 * signals.n_retry +
+        0.25 * signals.n_dropout +
+        0.20 * signals.n_decay_inverse +
+        0.15 * signals.n_recovery +
+        0.10 * signals.n_latency_stability
+    )
+    
+    # Dimension 5: Stress Resilience
+    stress_resilience = _clamp(
+        0.30 * signals.n_accuracy +
+        0.25 * signals.n_latency_stability +
+        0.20 * signals.n_recovery +
+        0.15 * signals.n_dropout +
+        0.10 * signals.n_decay_inverse
+    )
+    
+    return ProfileVector(
+        cognitive_capacity=cognitive_capacity,
+        attention_stability=attention_stability, # Weighted sum of latency_stability & accuracy
+        learning_tolerance=learning_tolerance,
+        motor_baseline=motor_baseline,
+        stress_resilience=stress_resilience,
+        time_constraint=time_constraint
+    )
+```
+
+---
+
+## 3. LEARNING PARAMETERS DERIVATION (32 Personalized Parameters)
+Location: backend/assessment/parameters.py
+
+```python
+def _compute_group_a(profile: ProfileVector) -> dict:
+    """Group A: Difficulty and entry parameters."""
+    return {
+        "difficulty_slope": _clamp(0.6 * profile.cognitive_capacity + 0.4 * profile.learning_tolerance),
+        "phase_pacing": _clamp((profile.attention_stability + profile.time_constraint) / 2.0),
+        "repetition_intensity": _clamp(1.0 - profile.learning_tolerance),
+    }
+
+def _compute_group_b(profile: ProfileVector) -> dict:
+    """Group B: Session structure parameters."""
+    return {
+        "session_duration": _clamp(profile.time_constraint * profile.attention_stability),
+        "micro_session_enabled": 1 if profile.attention_stability < 0.4 else 0,
+        "fatigue_threshold": _clamp(profile.attention_stability * profile.stress_resilience),
+    }
+```
+
+---
+
+## 4. SKILL SEARCH & ROADMAP GEN (Recent Premium Update)
+Location: frontend/src/views/SkillSelectView.tsx
+
+```tsx
+const onGenerateRoadmap = async () => {
+    // Falls back to stored skill if local state is missing (refresh resilience)
+    const activeSkill = selectedSkill || (currentSkill.skillId ? { 
+        skill_id: currentSkill.skillId, 
+        name: currentSkill.skillName 
+    } : null);
+    
+    if (!activeSkill) return;
+    
+    setGenerating(true);
+    try {
+        await roadmapStore.generateRoadmap(activeSkill.skill_id, activeSkill.name);
+        navigate("/grounding");
+    } catch (err) {
+        console.error("Roadmap generation failed", err);
+    } finally {
+        setGenerating(false);
+    }
+};
+---
+
+## 5. FRONTEND: ROADMAP LIFECYCLE (State Management)
+Location: frontend/src/store/navigationStore.ts
+
+```typescript
+export const useNavigationStore = create<NavigationState>()(
+  persist((set) => ({
+    ...initialState,
+    updateCheckpointStatus: (phaseId, techniqueId, checkpointId, status, validationReason) =>
+      set((state) => ({
+        roadmapState: {
+          ...state.roadmapState,
+          phases: state.roadmapState.phases.map((phase) =>
+            phase.id !== phaseId ? phase : {
+              ...phase,
+              competencies: phase.competencies.map((competency) => ({
+                ...competency,
+                techniques: competency.techniques.map((technique) =>
+                  technique.id !== techniqueId ? technique : {
+                    ...technique,
+                    checkpoints: technique.checkpoints.map((checkpoint) =>
+                      checkpoint.id !== checkpointId ? checkpoint : {
+                        ...checkpoint,
+                        status,
+                        validationReason,
+                        retriesRemaining: status === "failed" 
+                          ? Math.max(0, checkpoint.retriesRemaining - 1) 
+                          : checkpoint.retriesRemaining,
+                      }
+                    ),
+                  }
+                ),
+              })),
+            }
+          ),
+        },
+      })),
+  }), { name: "skillos-navigation" })
+);
+```
+
+---
+
+## 6. FRONTEND: PREMIUM UI (Neo-Brutalist & Glassmorphism)
+Location: frontend/src/globals.css
+
+```css
+/* Glassmorphism Modal */
+.glass-modal {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 4px solid var(--border);
+  box-shadow: 12px 12px 0 var(--shadow);
+  border-radius: 0; /* Neo-brutalist style */
+}
+
+/* Search Hero Section */
+.search-hero {
+  background: var(--accent-yellow);
+  padding: 40px 24px;
+  border: 3px solid var(--border);
+  box-shadow: 8px 8px 0 var(--shadow);
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
+}
+```
+
+---
+
+## 7. BACKEND: SYSTEM HEALTH DIAGNOSTICS
+Location: backend/main.py
+
+```python
+@app.get("/health")
+async def health() -> dict[str, Any]:
+    health_status = {"status": "ok", "database": "unknown", "redis": "unknown"}
+    
+    # Check Database
+    try:
+        async for session in get_db_session():
+            await session.execute(text("SELECT 1"))
+            health_status["database"] = "connected"
+            break
+    except Exception as e:
+        health_status["database"] = f"error: {str(e)}"
+        health_status["status"] = "error"
+
+    # Check Redis
+    try:
+        r = redis.from_url(settings.redis_url)
+        if r.ping():
+            health_status["redis"] = "connected"
+    except Exception as e:
+        health_status["redis"] = f"error: {str(e)}"
+        health_status["status"] = "error"
+
+    return health_status
+```
+
+---
+
+## 8. BACKEND: SKILL INTELLIGENCE ENGINE
+Location: backend/skill/intelligence_service.py
+
+```python
+async def generate_skill_research(
+    self,
+    user_id: UUID,
+    skill_id: str,
+    profile: ProfileVector,
+) -> SkillResearchObject:
+    # 1. Validate skill existence
+    skill_template = await self.skill_template_repo.get_active_template(to_skill_id(skill_id))
+    
+    # 2. Verify grounding completion
+    baseline_state = await self.grounding_repo.get_latest_baseline(user_id, to_skill_id(skill_id))
+    if not baseline_state:
+        raise BusinessError("grounding_required")
+
+    # 3. Orchestrate 4x LLM Research Pipeline
+    research_object = await compute_skill_research(
+        profile,
+        baseline_state,
+        skill_template
+    )
+
+    # 4. Persist and Audit
+    await SkillResearchRepository.create(self.session, research_object)
+    return research_object
+```
