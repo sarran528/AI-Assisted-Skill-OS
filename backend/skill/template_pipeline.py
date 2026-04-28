@@ -143,14 +143,18 @@ def to_skill_id(skill_name: str) -> str:
     return re.sub(r"[\s-]+", "_", cleaned)
 
 
+MULTI_QUERY_TEMPLATES = [
+    "{skill_name} complete learning roadmap",
+    "{skill_name} prerequisites beginner",
+    "{skill_name} common mistakes learners make",
+    "{skill_name} how long to learn",
+    "{skill_name} best resources tutorials",
+    "{skill_name} job requirements professional",
+]
+
+
 def build_queries(skill_name: str) -> list[str]:
-    return [
-        f"{skill_name} complete learning roadmap",
-        f"{skill_name} beginner techniques",
-        f"{skill_name} advanced techniques",
-        f"{skill_name} common mistakes",
-        f"{skill_name} prerequisite skills",
-    ][:MAX_QUERY_COUNT]
+    return [template.format(skill_name=skill_name) for template in MULTI_QUERY_TEMPLATES]
 
 
 def _domain(url: str) -> str:
@@ -597,18 +601,24 @@ class SkillTemplatePipeline:
         query_delay: float,
     ) -> StructuredTemplateResult | None:
         queries = build_queries(skill_name)[:query_limit]
+        
+        # Parallel SERP searches
+        search_tasks = [self._with_backoff(lambda q=query: self.search_web(q, num=query_num)) for query in queries]
+        all_url_sets = await asyncio.gather(*search_tasks)
+        
         all_urls: list[str] = []
-
-        for query in queries:
-            await self._sleep(query_delay)
-            urls = await self._with_backoff(lambda q=query: self.search_web(q, num=query_num))
-            all_urls.extend(filter_urls(urls or []))
+        for urls in all_url_sets:
+            if urls:
+                all_urls.extend(filter_urls(urls))
 
         retrieved_sources: list[_RetrievedSource] = []
-        for url in all_urls[:url_limit]:
-            text = await self._with_backoff(lambda u=url: self.extract_text(u))
+        # Parallel extraction
+        extract_tasks = [self._with_backoff(lambda u=url: self.extract_text(u)) for url in all_urls[:url_limit]]
+        extracted_texts = await asyncio.gather(*extract_tasks)
+        
+        for i, text in enumerate(extracted_texts):
             if text and len(text) > min_length:
-                retrieved_sources.append(_RetrievedSource(url=url, content=text))
+                retrieved_sources.append(_RetrievedSource(url=all_urls[i], content=text))
 
         deduped_sources: list[_RetrievedSource] = []
         seen_hashes: set[str] = set()
@@ -646,6 +656,44 @@ class SkillTemplatePipeline:
         self._store_in_faiss(result, skill_name)
         await self._index_sources_in_pgvector(skill_id, deduped_sources)
         return result
+
+    async def aggregate_serp_context(self, skill_name: str) -> dict[str, Any]:
+        """Stage 3: Raw Data Aggregation for LLM input."""
+        queries = build_queries(skill_name)
+        search_tasks = [self._with_backoff(lambda q=query: self.search_web(q, num=3)) for query in queries]
+        all_url_sets = await asyncio.gather(*search_tasks)
+        
+        url_map: dict[str, list[str]] = {}
+        for i, urls in enumerate(all_url_sets):
+            if urls:
+                url_map[MULTI_QUERY_TEMPLATES[i]] = filter_urls(urls)
+
+        # Parallel extraction of top 2 URLs per query
+        all_target_urls = []
+        for urls in url_map.values():
+            all_target_urls.extend(urls[:2])
+        
+        all_target_urls = list(set(all_target_urls))[:10] # Unique top URLs
+        extract_tasks = [self._with_backoff(lambda u=url: self.extract_text(u)) for url in all_target_urls]
+        extracted_texts = await asyncio.gather(*extract_tasks)
+        
+        # Structure the context
+        context_blocks = []
+        for i, text in enumerate(extracted_texts):
+            if text:
+                # Basic cleaning: strip extra whitespace and short lines
+                lines = [line.strip() for line in text.split('\n') if len(line.strip()) > 40]
+                cleaned_text = " ".join(lines[:50]) # First 50 relevant lines
+                context_blocks.append({
+                    "url": all_target_urls[i],
+                    "content": cleaned_text
+                })
+        
+        return {
+            "skill_name": skill_name,
+            "research_timestamp": datetime.utcnow().isoformat(),
+            "sources": context_blocks
+        }
 
     async def build_with_fallback(self, skill_name: str) -> StructuredTemplateResult | None:
         primary = await self._attempt_build(

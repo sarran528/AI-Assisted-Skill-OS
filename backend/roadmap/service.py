@@ -198,7 +198,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.shared.db.models import Roadmap
-from backend.shared.queue.tasks import prefetch_resources_task
+from backend.shared.queue.provider import queue_named_event
 
 
 async def transition_roadmap_phase(
@@ -218,5 +218,8 @@ async def transition_roadmap_phase(
     await db.commit()
     await db.refresh(roadmap)
 
-    prefetch_resources_task.delay(str(user_id), roadmap.skill_id, phase)
+    await queue_named_event(
+        name="roadmap/resources.prefetch.requested",
+        data={"user_id": str(user_id), "skill_id": roadmap.skill_id, "phase": phase},
+    )
     return roadmap

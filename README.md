@@ -20,10 +20,12 @@ direnv allow
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-4. Run Celery worker:
+4. Configure Inngest queue settings in `.env.local`:
 
 ```
-celery -A backend.shared.queue.celery_app worker --loglevel=INFO
+USE_INNGEST_QUEUE=true
+INNGEST_EVENT_BASE_URL=https://inn.gs/e
+INNGEST_EVENT_KEY=<your_inngest_event_key>
 ```
 
 5. Apply migrations:

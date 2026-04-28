@@ -15,7 +15,7 @@ from backend.shared.models import APIModel
 from backend.shared.db.repositories.roadmap_repository import RoadmapRepository
 from backend.shared.db.session import get_db_session
 from backend.shared.rate_limit import limiter
-from backend.shared.queue.celery_app import celery_app
+from backend.shared.queue.provider import queue_roadmap_generation
 
 router = APIRouter()
 
@@ -45,10 +45,9 @@ async def generate_roadmap(
     payload: RoadmapGenerateRequest,
     current_user: AuthContext = Depends(get_current_user),
 ) -> RoadmapGenerateResponse:
-    from backend.shared.queue.tasks import generate_roadmap_task
     _ = request
-    task = generate_roadmap_task.delay(str(current_user.user.id), payload.skill_id)
-    return RoadmapGenerateResponse(job_id=task.id, status="queued")
+    _, job_id = await queue_roadmap_generation(str(current_user.user.id), payload.skill_id)
+    return RoadmapGenerateResponse(job_id=job_id, status="queued_inngest")
 
 
 @router.get("/{user_id}", response_model=FlowRoadmapResponse)
@@ -102,12 +101,12 @@ async def get_roadmap_status(
         return {"status": "completed", "job_id": job_id}
 
     if job_id:
-        result = celery_app.AsyncResult(job_id)
-        if result.state in {"PENDING", "STARTED"}:
-            return {"status": "queued", "job_id": job_id}
-        if result.state == "SUCCESS":
-            return {"status": "completed", "job_id": job_id}
-        return {"status": "failed", "job_id": job_id}
+        return {
+            "status": "queued",
+            "provider": "inngest",
+            "job_id": job_id,
+            "note": "Track this job in Inngest dashboard until provider status webhooks are wired.",
+        }
 
     return {"status": "queued", "job_id": job_id}
 

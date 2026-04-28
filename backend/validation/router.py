@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.shared.queue.tasks import validate_checkpoint_task
+from backend.shared.queue.provider import queue_named_event
 from backend.validation.schemas import CheckpointValidateRequest
 from backend.shared.db.models import CheckpointState
 from backend.shared.db.session import get_db_session
@@ -14,8 +14,14 @@ router = APIRouter()
 
 @router.post("/validate")
 async def enqueue_checkpoint_validation(payload: CheckpointValidateRequest) -> dict:
-	task = validate_checkpoint_task.delay(str(payload.session_id), payload.checkpoint_id)
-	return {"job_id": task.id}
+	_, job_id = await queue_named_event(
+		name="validation/checkpoint.requested",
+		data={
+			"session_id": str(payload.session_id),
+			"checkpoint_id": payload.checkpoint_id,
+		},
+	)
+	return {"job_id": job_id, "provider": "inngest"}
 
 
 @router.get("/{roadmap_id}")

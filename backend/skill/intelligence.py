@@ -16,6 +16,29 @@ from backend.shared.llm.schemas import (
 )
 
 
+class SkillAnalysis(BaseModel):
+    skill_name: str
+    complexity_score: float
+    prerequisite_gaps: list[str]
+    estimated_phases: list[str]
+    common_failure_modes: list[str]
+
+
+class SkillQuestion(BaseModel):
+    id: str
+    text: str
+    type: Literal["single_select", "multi_select", "numeric", "slider"]
+    options: list[str] | None = None
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+
+
+class SkillAnalysisResponse(BaseModel):
+    analysis: SkillAnalysis
+    questions: list[SkillQuestion]
+
+
 class SkillResearchObject(BaseModel):
     """Complete intelligence package for a skill-profile combination."""
 
@@ -188,3 +211,39 @@ async def compute_skill_research(
         estimated_total_hours=(template_constants or {}).get("estimated_total_hours"),
         user_answers=user_answers,
     )
+
+
+async def analyze_skill_context(skill_name: str, context: dict[str, Any]) -> SkillAnalysisResponse:
+    """Stage 4: LLM + Agentic AI analysis of skill context."""
+    from backend.shared.llm.gateway import llm_call
+    from backend.shared.llm.prompts import build_skill_analysis_prompt
+
+    result = await llm_call(
+        prompt=build_skill_analysis_prompt(skill_name, context),
+        system_prompt="You are the SkillOS intelligence engine. Respond ONLY with valid JSON matching the provided schema.",
+        response_schema=SkillAnalysisResponse,
+        temperature=0.0,
+    )
+    
+    if not result:
+        # Fallback if LLM fails
+        return SkillAnalysisResponse(
+            analysis=SkillAnalysis(
+                skill_name=skill_name,
+                complexity_score=0.5,
+                prerequisite_gaps=[],
+                estimated_phases=["fundamentals", "intermediate", "advanced"],
+                common_failure_modes=[]
+            ),
+            questions=[
+                SkillQuestion(
+                    id="experience",
+                    text="What is your prior experience with this skill?",
+                    type="slider",
+                    min=1,
+                    max=5,
+                    step=1
+                )
+            ]
+        )
+    return result

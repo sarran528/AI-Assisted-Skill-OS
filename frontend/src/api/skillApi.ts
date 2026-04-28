@@ -28,6 +28,8 @@ export interface DiscoverSkillResponse {
   complexity_score: number;
   version: number;
   created: boolean;
+  status: string;
+  job_id: string;
 }
 
 export interface SkillResearchComposeRequest {
@@ -37,12 +39,37 @@ export interface SkillResearchComposeRequest {
   has_required_tools: boolean;
   hours_per_week: number;
   target_goal: "hobby" | "professional" | "exam";
+  dynamic_answers: Record<string, any>;
+}
+
+export interface SkillQuestion {
+  id: string;
+  text: string;
+  type: "single_select" | "multi_select" | "numeric" | "slider";
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface SkillAnalysis {
+  skill_name: string;
+  complexity_score: number;
+  prerequisite_gaps: string[];
+  estimated_phases: string[];
+  common_failure_modes: string[];
+}
+
+export interface SkillAnalysisResponse {
+  analysis: SkillAnalysis;
+  questions: SkillQuestion[];
 }
 
 export interface SkillResearchComposeResponse {
   skill_id: string;
   status: string;
   roadmap_job_id: string;
+  research_job_id: string;
 }
 
 export const skillApi = {
@@ -70,4 +97,7 @@ export const skillApi = {
 
   composeResearch: (data: SkillResearchComposeRequest) =>
     axiosClient.post<SkillResearchComposeResponse>('/skill/research/compose', data),
+
+  analyzeSkill: (skillName: string) =>
+    axiosClient.post<SkillAnalysisResponse>('/skill/analyze', { skill_name: skillName }),
 };

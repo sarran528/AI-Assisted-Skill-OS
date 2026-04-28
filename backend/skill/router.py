@@ -20,6 +20,7 @@ from backend.skill.schemas import (
     SkillDiscoverResponse,
     SkillResearchComposeRequest,
     SkillResearchComposeResponse,
+    SkillAnalysisRequest,
 )
 from backend.skill.grounding_schemas import (
     GroundingProbeResponses,
@@ -32,10 +33,10 @@ from backend.shared.db.repositories.grounding_repository import GroundingReposit
 from backend.skill.intelligence_service import SkillIntelligenceService
 from backend.shared.db.models import CognitiveProfile
 from backend.assessment.profile_vector import ProfileVector
-from backend.skill.intelligence import SkillResearchObject
+from backend.skill.intelligence import SkillAnalysisResponse, SkillResearchObject
 from backend.skill.template_pipeline import to_skill_id
 from sqlalchemy import select
-from backend.shared.queue.tasks import generate_roadmap_task
+from backend.shared.queue.provider import queue_roadmap_generation, queue_skill_discovery, queue_skill_research_compose
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -247,21 +248,24 @@ async def discover_skill_from_internet(
     db_session: AsyncSession = Depends(get_db_session),
 ):
     """Discover/generate a skill template from internet sources for any user."""
-    _ = current_user
+    _ = db_session
     try:
-        service = SkillTemplateService(db_session)
-        template, _generated_version, created = await service.build_template_from_skill_name(
+        normalized_skill_id = to_skill_id(payload.skill_name)
+        _, job_id = await queue_skill_discovery(
             skill_name=payload.skill_name,
             domain=payload.domain,
             complexity_score=payload.complexity_score,
+            requested_by_user_id=str(current_user.user.id),
         )
         return SkillDiscoverResponse(
-            skill_id=template.skill_id,
-            name=template.name,
-            domain=template.domain,
-            complexity_score=float(template.complexity_score),
-            version=int(template.version),
-            created=created,
+            skill_id=normalized_skill_id,
+            name=payload.skill_name,
+            domain=payload.domain,
+            complexity_score=float(payload.complexity_score),
+            version=0,
+            created=False,
+            status="queued_inngest",
+            job_id=job_id,
         )
     except BusinessError as e:
         raise HTTPException(
@@ -275,10 +279,28 @@ async def discover_skill_from_internet(
         )
 
 
+@router.post("/analyze", response_model=SkillAnalysisResponse)
+async def analyze_skill_preliminary(
+    payload: SkillAnalysisRequest,
+    current_user: AuthContext = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+):
+    """Execute Stages 1-4: Preliminary research and analysis to generate user questions."""
+    try:
+        service = SkillIntelligenceService(db_session)
+        analysis_response = await service.analyze_skill_preliminary(payload.skill_name)
+        return analysis_response
+    except Exception as e:
+        logger.error(f"Preliminary analysis failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to analyze skill: {str(e)}",
+        )
+
+
 @router.post("/research/compose", response_model=SkillResearchComposeResponse, status_code=status.HTTP_201_CREATED)
 async def compose_skill_research(
     payload: SkillResearchComposeRequest,
-    request: Request,
     current_user: AuthContext = Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session),
 ):
@@ -306,9 +328,22 @@ async def compose_skill_research(
             time_constraint=float(profile_record.time_constraint),
         )
 
+        constants = {
+            "phases": [],
+            "techniques": [],
+            "checkpoints": [],
+            "prerequisites": [],
+            "estimated_total_hours": 60,
+        }
         skill_service = SkillTemplateService(db_session)
-        template = await skill_service.get_skill(normalized_skill_id)
-        constants = _flatten_template_constants(template.structure or {}, float(template.complexity_score))
+        try:
+            template = await skill_service.get_skill(normalized_skill_id)
+            constants = _flatten_template_constants(template.structure or {}, float(template.complexity_score))
+        except BusinessError:
+            logger.info(
+                "Template not yet available during compose; proceeding with default constants",
+                extra={"skill_id": normalized_skill_id, "user_id": str(current_user.user.id)},
+            )
         difficulty_modifier = _difficulty_modifier(payload, profile)
 
         # Ensure baseline exists from user answers if prior probes were skipped.
@@ -335,33 +370,46 @@ async def compose_skill_research(
                 raw_responses=payload.model_dump(),
             )
 
-        intelligence_service = SkillIntelligenceService(db_session)
-        await intelligence_service.generate_skill_research(
-            user_id=current_user.user.id,
-            skill_id=normalized_skill_id,
-            profile=profile,
-            ip_address=request.client.host if request.client else "127.0.0.1",
-            user_goal=payload.target_goal,
-            difficulty_modifier=difficulty_modifier,
-            user_answers=payload.model_dump(),
-            template_constants=constants,
-        )
+        queue_payload = {
+            "user_id": str(current_user.user.id),
+            "skill_id": normalized_skill_id,
+            "user_goal": payload.target_goal,
+            "difficulty_modifier": difficulty_modifier,
+            "user_answers": payload.model_dump(),
+            "template_constants": constants,
+            "profile": profile.model_dump(),
+            "search_provider": settings.search_provider,
+            "serp_aspects": [
+                "skill_definition_and_scope",
+                "foundational_subskills",
+                "tooling_and_prerequisites",
+                "learning_path_milestones",
+                "portfolio_project_ideas",
+                "market_demand_and_roles",
+                "common_beginner_mistakes",
+            ],
+        }
+
+        queue_provider, research_job_id = await queue_skill_research_compose(queue_payload)
 
         try:
-            task = generate_roadmap_task.delay(str(current_user.user.id), normalized_skill_id)
+            _, job_id = await queue_roadmap_generation(
+                user_id=str(current_user.user.id),
+                skill_id=normalized_skill_id,
+            )
             return SkillResearchComposeResponse(
                 skill_id=normalized_skill_id,
-                status="queued",
-                roadmap_job_id=task.id,
+                status=f"queued_{queue_provider}",
+                roadmap_job_id=job_id,
+                research_job_id=research_job_id,
             )
         except Exception as e:
             logger.error(f"Failed to queue roadmap task: {e}")
-            # Still return success because we have the research object persisted,
-            # but warn that the roadmap generation is delayed.
             return SkillResearchComposeResponse(
                 skill_id=normalized_skill_id,
                 status="persisted_but_not_queued",
                 roadmap_job_id="none",
+                research_job_id=research_job_id,
             )
     except BusinessError as e:
         raise HTTPException(

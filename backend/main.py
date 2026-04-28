@@ -9,6 +9,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
+import inngest.fastapi
 
 from backend.api.router import api_router
 from backend.user.router import router as user_router
@@ -22,6 +23,7 @@ import redis
 from backend.shared.logging import configure_logging
 from backend.shared.rate_limit import limiter
 from backend.shared.middleware import request_id_middleware
+from backend.shared.queue.inngest_app import inngest_client, inngest_functions
 
 
 def create_app() -> FastAPI:
@@ -101,6 +103,14 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix="/api/v1")
     app.include_router(user_router, prefix="/api/v1")
+
+    # Inngest serving
+    inngest.fastapi.serve(
+        app,
+        inngest_client,
+        inngest_functions,
+    )
+    
     return app
 
 

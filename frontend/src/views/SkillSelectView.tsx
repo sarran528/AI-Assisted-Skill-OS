@@ -4,8 +4,76 @@ import { skillApi } from "../api/skillApi";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { Input } from "../components/ui/Input";
+import { SerpQueryVisualization } from "../components/skill/SerpQueryVisualization";
+import { RoadmapRequirementSummary } from "../components/skill/RoadmapRequirementSummary";
+import { SkillContextAnalysis } from "../components/skill/SkillContextAnalysis";
 import { useNavigationStore, type RoadmapPhase } from "../store/navigationStore";
 import { Skill } from "../components/skill/SkillCard";
+import { DynamicQuestionForm } from "../components/skill/DynamicQuestionForm";
+import { type SkillAnalysis, type SkillQuestion } from "../api/skillApi";
+
+// Pipeline stage visualization — Neo-Brutalist
+const PipelineStages = ({ currentStage }: { currentStage: "idle" | "discover" | "aggregate" | "llm" | "form" | "generate" }) => {
+  const stages = [
+    { id: "discover",  label: "SERP",  description: "Search" },
+    { id: "aggregate", label: "AGGR",  description: "Clean" },
+    { id: "llm",       label: "AI",    description: "Analyse" },
+    { id: "form",      label: "FORM",  description: "Inputs" },
+    { id: "generate",  label: "MAP",   description: "Roadmap" },
+  ];
+
+  const order = ["idle", "discover", "aggregate", "llm", "form", "generate"];
+  const currentIndex = order.indexOf(currentStage);
+
+  return (
+    <div style={{
+      display: "flex",
+      border: "3px solid var(--border)",
+      boxShadow: "4px 4px 0 var(--shadow)",
+      marginBottom: "16px",
+      overflow: "hidden",
+    }}>
+      {stages.map((stage, idx) => {
+        const stageIndex = order.indexOf(stage.id);
+        const isActive   = stageIndex === currentIndex;
+        const isComplete = stageIndex < currentIndex;
+
+        return (
+          <div
+            key={stage.id}
+            style={{
+              flex: 1,
+              borderRight: idx < stages.length - 1 ? "2px solid var(--border)" : "none",
+              background: isActive ? "var(--color-primary)" : isComplete ? "var(--border)" : "#fff",
+              padding: "10px 6px",
+              textAlign: "center",
+              transition: "background 0.2s",
+            }}
+          >
+            <div style={{
+              fontFamily: "var(--font-primary)",
+              fontSize: "8px",
+              color: isComplete ? "#fff" : isActive ? "var(--foreground)" : "#aaa",
+              marginBottom: "4px",
+              letterSpacing: "0.05em",
+            }}>
+              {stage.label}
+            </div>
+            <div style={{
+              fontFamily: "var(--font-secondary)",
+              fontSize: "9px",
+              color: isComplete ? "#ccc" : isActive ? "#333" : "#bbb",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}>
+              {stage.description}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export function SkillSelectView() {
   const navigate = useNavigate();
@@ -16,6 +84,7 @@ export function SkillSelectView() {
   const [generating, setGenerating] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
+  const [discoverStatus, setDiscoverStatus] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [whyLearn, setWhyLearn] = useState("");
   const [experienceLevel, setExperienceLevel] = useState<"beginner" | "intermediate" | "advanced">("beginner");
@@ -23,6 +92,13 @@ export function SkillSelectView() {
   const [hoursPerWeek, setHoursPerWeek] = useState(6);
   const [targetGoal, setTargetGoal] = useState<"hobby" | "professional" | "exam">("hobby");
   const [composeError, setComposeError] = useState<string | null>(null);
+  const [pipelineStage, setPipelineStage] = useState<"idle" | "discover" | "aggregate" | "llm" | "form" | "generate">("idle");
+  const [discoverJobId, setDiscoverJobId] = useState<string | null>(null);
+  const [researchJobId, setResearchJobId] = useState<string | null>(null);
+  const [skillAnalysis, setSkillAnalysis] = useState<SkillAnalysis | null>(null);
+  const [skillQuestions, setSkillQuestions] = useState<SkillQuestion[]>([]);
+  const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({});
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -98,9 +174,23 @@ export function SkillSelectView() {
     },
   ];
 
-  const onSelectSkill = (skill: Skill) => {
+  const onSelectSkill = async (skill: Skill) => {
     setSelectedSkill(skill);
     setCurrentSkill({ skillId: skill.skill_id, skillName: skill.name, domain: "General" });
+    
+    // Stage 4: Analyze skill context and get questions
+    setIsAnalyzing(true);
+    setPipelineStage("llm");
+    try {
+      const response = await skillApi.analyzeSkill(skill.name);
+      setSkillAnalysis(response.data.analysis);
+      setSkillQuestions(response.data.questions);
+      setPipelineStage("form");
+    } catch (err) {
+      console.error("Analysis failed:", err);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const reloadSkills = () => {
@@ -117,6 +207,8 @@ export function SkillSelectView() {
     if (!skillName) return;
     setDiscovering(true);
     setDiscoverError(null);
+    setDiscoverStatus(null);
+    setPipelineStage("discover");
     try {
       const response = await skillApi.discoverSkill({
         skill_name: skillName,
@@ -128,10 +220,23 @@ export function SkillSelectView() {
         name: response.data.name,
         complexity: response.data.complexity_score,
       };
+      setDiscoverJobId(response.data.job_id);
       reloadSkills();
       onSelectSkill(discovered);
+      setDiscoverStatus(`✓ Discovery queued (job ${response.data.job_id.slice(0, 8)}). Serp multi-query running...`);
+      setPipelineStage("aggregate");
+      
+      // Fetch analysis after aggregation
+      setTimeout(async () => {
+        setPipelineStage("llm");
+        const analysisRes = await skillApi.analyzeSkill(skillName);
+        setSkillAnalysis(analysisRes.data.analysis);
+        setSkillQuestions(analysisRes.data.questions);
+        setPipelineStage("form");
+      }, 1500);
     } catch (error: any) {
       setDiscoverError(error?.response?.data?.detail ?? "Could not discover skill from internet.");
+      setPipelineStage("idle");
     } finally {
       setDiscovering(false);
     }
@@ -147,6 +252,7 @@ export function SkillSelectView() {
     }
     setGenerating(true);
     setComposeError(null);
+    setPipelineStage("form");
     setSystemState("roadmap_generation");
     setRoadmapState({ isGenerating: true, isGenerated: false });
     skillApi.composeResearch({
@@ -156,7 +262,10 @@ export function SkillSelectView() {
       has_required_tools: hasTools,
       hours_per_week: hoursPerWeek,
       target_goal: targetGoal,
-    }).then(() => {
+      dynamic_answers: dynamicAnswers,
+    }).then((response) => {
+      setResearchJobId(response.data.research_job_id);
+      setPipelineStage("generate");
       const phases = buildRoadmap(activeSkill.name as string);
       setRoadmapPhases(phases);
       setRoadmapState({
@@ -172,6 +281,7 @@ export function SkillSelectView() {
       setRoadmapState({ isGenerating: false, isGenerated: false });
       setSystemState("profile_active");
       setComposeError(error?.response?.data?.detail ?? "Failed to generate research for roadmap.");
+      setPipelineStage("form");
     }).finally(() => setGenerating(false));
   };
 
@@ -221,6 +331,72 @@ export function SkillSelectView() {
               ERROR: {discoverError}
             </p>
           )}
+          {discoverStatus && (
+            <p className="small-copy" style={{ color: "#0b4a2b", marginTop: "12px", fontWeight: "bold" }}>
+              {discoverStatus}
+            </p>
+          )}
+          {discovering && (
+            <div style={{
+              marginTop: "24px",
+              border: "3px solid var(--border)",
+              boxShadow: "6px 6px 0 var(--shadow)",
+              background: "#fff",
+            }}>
+              {/* Title bar */}
+              <div style={{
+                background: "var(--color-primary)",
+                borderBottom: "3px solid var(--border)",
+                padding: "10px 16px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}>
+                <span style={{ fontFamily: "var(--font-primary)", fontSize: "9px", letterSpacing: "0.08em" }}>
+                  ► SKILL DISCOVERY PIPELINE
+                </span>
+                <span style={{
+                  fontFamily: "var(--font-primary)",
+                  fontSize: "8px",
+                  border: "2px solid var(--border)",
+                  padding: "2px 8px",
+                  background: "var(--foreground)",
+                  color: "var(--color-primary)",
+                  animation: "blink-status 1s step-end infinite",
+                }}>
+                  ● RUNNING
+                </span>
+              </div>
+
+              {/* Stage tracker */}
+              <div style={{ padding: "16px 16px 0" }}>
+                <PipelineStages currentStage={pipelineStage} />
+              </div>
+
+              {/* SERP grid */}
+              <div style={{ padding: "0 16px" }}>
+                <SerpQueryVisualization skill_name={search} isRunning={pipelineStage === "discover"} />
+              </div>
+
+              {/* Status footer */}
+              <div style={{
+                borderTop: "3px solid var(--border)",
+                padding: "10px 16px",
+                background: "var(--muted)",
+                fontFamily: "'Space Mono', monospace",
+                fontSize: "10px",
+                color: "#444",
+              }}>
+                <strong>ENGINE:</strong> Analysing "{search}" — fetching roadmap patterns, prerequisites, and failure modes.
+              </div>
+            </div>
+          )}
+          <style>{`
+            @keyframes blink-status {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.15; }
+            }
+          `}</style>
         </div>
       </section>
 
@@ -266,8 +442,25 @@ export function SkillSelectView() {
 
       {/* Setup Modal Overlay */}
       {(selectedSkill || currentSkill.skillId) && (
-        <div className="setup-overlay">
-          <div className="setup-modal">
+        <div className="setup-overlay" style={{ 
+          backgroundColor: "rgba(0,0,0,0.85)", 
+          backdropFilter: "blur(12px)",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <div className="setup-modal" style={{ 
+            maxHeight: "90vh", 
+            overflowY: "auto", 
+            width: "90%", 
+            maxWidth: "800px",
+            backgroundColor: "var(--color-bg)",
+            border: "4px solid var(--border)",
+            boxShadow: "12px 12px 0 var(--shadow)",
+            padding: "32px",
+            position: "relative"
+          }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
               <div>
                 <span className="mono-caps" style={{ color: "var(--color-tertiary)" }}>Skill Initialization</span>
@@ -277,6 +470,7 @@ export function SkillSelectView() {
                 onClick={() => {
                   setSelectedSkill(null);
                   setCurrentSkill({ skillId: null, skillName: null, domain: null });
+                  setPipelineStage("idle");
                 }}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", fontWeight: "bold" }}
               >
@@ -284,22 +478,42 @@ export function SkillSelectView() {
               </button>
             </div>
 
+            {discoverJobId && (
+              <div style={{ marginBottom: "24px" }}>
+                <PipelineStages currentStage={pipelineStage} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "10px", marginTop: "12px" }}>
+                  <div className="brutal-card" style={{ padding: "8px", backgroundColor: "rgba(11, 74, 43, 0.05)" }}>
+                    <span style={{ color: "#666", fontSize: "8px", textTransform: "uppercase" }}>Discovery Task</span>
+                    <div style={{ fontSize: "10px", color: "#0b4a2b", fontWeight: "bold", fontFamily: "monospace" }}>{discoverJobId.slice(0, 16)}</div>
+                  </div>
+                  {researchJobId && (
+                    <div className="brutal-card" style={{ padding: "8px", backgroundColor: "rgba(11, 74, 43, 0.05)" }}>
+                      <span style={{ color: "#666", fontSize: "8px", textTransform: "uppercase" }}>Synthesis Task</span>
+                      <div style={{ fontSize: "10px", color: "#0b4a2b", fontWeight: "bold", fontFamily: "monospace" }}>{researchJobId.slice(0, 16)}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <SkillContextAnalysis
+              skillName={selectedSkill?.name || search}
+              skillContext={skillAnalysis || undefined}
+              isLoading={pipelineStage === "llm" || isAnalyzing}
+            />
+
             <div className="stepper-header">
               <div className="step-dot active"></div>
               <div className={`step-dot ${whyLearn.length > 5 ? "complete" : ""}`}></div>
               <div className="step-dot"></div>
             </div>
 
-            <div style={{ display: "grid", gap: "20px" }}>
-              <div className="dashboard-value-row">
-                <label className="section-title">Objective Context</label>
-                <textarea
-                  className="brutal-input"
-                  rows={3}
-                  value={whyLearn}
-                  onChange={(e) => setWhyLearn(e.target.value)}
-                  placeholder="Tell us what you want to achieve with this skill..."
-                  style={{ width: "100%", resize: "none" }}
+              <div style={{ padding: "16px", backgroundColor: "rgba(255, 107, 0, 0.05)", border: "2px solid var(--border)", boxShadow: "4px 4px 0 var(--shadow)", marginBottom: "20px" }}>
+                <p className="mono-caps" style={{ color: "#ff6b00", marginBottom: "12px", fontSize: "10px" }}>Stage 5: Dynamic Input Form</p>
+                <DynamicQuestionForm 
+                  questions={skillQuestions}
+                  answers={dynamicAnswers}
+                  onAnswerChange={(id, val) => setDynamicAnswers(prev => ({ ...prev, [id]: val }))}
                 />
               </div>
 
@@ -374,6 +588,24 @@ export function SkillSelectView() {
                 </div>
               )}
 
+              <div style={{ padding: "12px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "4px", fontSize: "10px", color: "#666", borderLeft: "3px solid #ff6b00" }}>
+                <p style={{ margin: 0, marginBottom: "6px", fontWeight: "bold", color: "#333" }}>📊 Pipeline Overview</p>
+                <p style={{ margin: 0, marginBottom: "4px" }}>Your answers will be merged with the LLM-generated skill analysis to create a deterministic roadmap.</p>
+                <p style={{ margin: 0 }}>Stages: SERP Research → Aggregation → LLM Analysis → Your Answers → Roadmap Generation</p>
+              </div>
+
+              {selectedSkill && whyLearn.trim() && (
+                <RoadmapRequirementSummary
+                  skillName={selectedSkill.name}
+                  skillComplexity={selectedSkill.complexity}
+                  userObjective={whyLearn}
+                  experienceLevel={experienceLevel}
+                  targetGoal={targetGoal}
+                  hoursPerWeek={hoursPerWeek}
+                  hasTools={hasTools}
+                />
+              )}
+
               <BrutalButton
                 variant="primary"
                 onClick={onGenerateRoadmap}
@@ -382,7 +614,6 @@ export function SkillSelectView() {
               >
                 {generating ? "SYNTHESIZING ROADMAP..." : "INITIALIZE ROADMAP"}
               </BrutalButton>
-            </div>
           </div>
         </div>
       )}

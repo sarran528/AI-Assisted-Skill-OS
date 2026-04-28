@@ -114,3 +114,46 @@ Return strict JSON with exactly these keys:
 - notes (string explanation)
 
 CRITICAL: The adjustments MUST be between -0.3 and 0.3. Use 0.0 for no change."""
+
+
+def build_skill_analysis_prompt(skill_name: str, context: dict) -> str:
+    import json
+    return f"""Analyze the following search data for the skill: "{skill_name}".
+
+RESEARCH DATA:
+{json.dumps(context, indent=2)}
+
+TASK:
+1. Analyze the skill's complexity and requirements based on the data.
+2. Identify gaps in the data that require user input (e.g., goals, constraints, prior experience).
+3. Generate a set of 3-5 high-impact questions to fill these gaps.
+
+CONSTRAINTS:
+- Return ONLY valid JSON.
+- Use temperature 0.0.
+- Questions must have types: "single_select", "multi_select", "numeric", or "slider".
+- Complexity score must be between 0.0 and 1.0.
+
+REQUIRED JSON SCHEMA:
+{{
+  "analysis": {{
+    "skill_name": "string",
+    "complexity_score": float,
+    "prerequisite_gaps": ["string"],
+    "estimated_phases": ["string"],
+    "common_failure_modes": ["string"]
+  }},
+  "questions": [
+    {{
+      "id": "string",
+      "text": "string",
+      "type": "single_select | multi_select | numeric | slider",
+      "options": ["string"],
+      "min": number,
+      "max": number,
+      "step": number
+    }}
+  ]
+}}
+"""
+

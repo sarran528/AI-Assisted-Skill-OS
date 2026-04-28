@@ -1,12 +1,24 @@
 from fastapi import APIRouter
-
-from backend.shared.queue.celery_app import celery_app
+from backend.shared.config import settings
 
 router = APIRouter()
 
 
 @router.get("/{job_id}")
 async def get_job_status(job_id: str) -> dict:
-    result = celery_app.AsyncResult(job_id)
-    payload = result.result if isinstance(result.result, dict) else None
-    return {"status": result.state, "result": payload}
+    if settings.use_inngest_queue:
+        return {
+            "status": "queued",
+            "provider": "inngest",
+            "job_id": job_id,
+            "result": None,
+            "note": "Track execution in Inngest dashboard or webhook sink until status backend is integrated.",
+        }
+
+    return {
+        "status": "disabled",
+        "provider": "none",
+        "job_id": job_id,
+        "result": None,
+        "note": "No queue provider configured.",
+    }

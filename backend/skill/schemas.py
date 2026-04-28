@@ -3,6 +3,7 @@ Pydantic models for skill template API requests and responses.
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 from pydantic import BaseModel, Field
 
@@ -87,6 +88,8 @@ class SkillDiscoverResponse(BaseModel):
     complexity_score: float
     version: int
     created: bool
+    status: str = "queued_inngest"
+    job_id: str = ""
 
 
 class SkillResearchComposeRequest(BaseModel):
@@ -98,6 +101,7 @@ class SkillResearchComposeRequest(BaseModel):
     has_required_tools: bool = Field(...)
     hours_per_week: int = Field(..., ge=1, le=80)
     target_goal: str = Field(..., pattern="^(hobby|professional|exam)$")
+    dynamic_answers: dict[str, Any] = Field(default_factory=dict)
 
 
 class SkillResearchComposeResponse(BaseModel):
@@ -106,3 +110,8 @@ class SkillResearchComposeResponse(BaseModel):
     skill_id: str
     status: str
     roadmap_job_id: str
+    research_job_id: str = ""
+
+
+class SkillAnalysisRequest(BaseModel):
+    skill_name: str = Field(..., min_length=2, max_length=128)

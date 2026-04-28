@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.session.execution import SessionResult, should_generate_tip
 from backend.session.schemas import SessionCompleteResponse
 from backend.shared.db.models import LearningParameter, Roadmap, Session
-from backend.shared.queue.tasks import generate_tip_task
+from backend.shared.queue.provider import queue_named_event
 from backend.validation.validators import validate_behavioral_log
 
 
@@ -116,13 +116,17 @@ async def complete_session(
 
     tip_pending = False
     if should_generate_tip(result, session, params):
-        generate_tip_task.delay(
-            str(session.id),
-            roadmap.skill_id,
-            session.technique_id,
-            failure_reason,
-            session.metrics_captured or {},
-            str(params.id),
+        await queue_named_event(
+            name="session/tip.generate.requested",
+            data={
+                "session_id": str(session.id),
+                "skill_id": roadmap.skill_id,
+                "technique_id": session.technique_id,
+                "failure_reason": failure_reason,
+                "session_metrics": session.metrics_captured or {},
+                "learning_parameter_id": str(params.id),
+                "user_id": str(user_id),
+            },
         )
         tip_pending = True
 

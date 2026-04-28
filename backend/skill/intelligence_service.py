@@ -10,8 +10,13 @@ from backend.shared.db.repositories.grounding_repository import GroundingReposit
 from backend.shared.db.repositories.skill_research_repository import SkillResearchRepository
 from backend.shared.db.repositories.skill_template_repository import SkillTemplateRepository
 from backend.shared.errors import BusinessError
-from backend.skill.intelligence import SkillResearchObject, compute_skill_research
-from backend.skill.template_pipeline import to_skill_id
+from backend.skill.intelligence import (
+    SkillAnalysisResponse,
+    SkillResearchObject,
+    analyze_skill_context,
+    compute_skill_research,
+)
+from backend.skill.template_pipeline import SkillTemplatePipeline, to_skill_id
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +28,16 @@ class SkillIntelligenceService:
         self.session = session
         self.skill_template_repo = SkillTemplateRepository(session)
         self.grounding_repo = GroundingRepository(session)
+        self.pipeline = SkillTemplatePipeline(session)
+
+    async def analyze_skill_preliminary(self, skill_name: str) -> SkillAnalysisResponse:
+        """Execute Stages 1-4 of the architecture."""
+        # Stage 2 & 3: SERP & Aggregation
+        context = await self.pipeline.aggregate_serp_context(skill_name)
+        
+        # Stage 4: LLM Analysis & Question Generation
+        analysis_response = await analyze_skill_context(skill_name, context)
+        return analysis_response
 
     async def generate_skill_research(
         self,

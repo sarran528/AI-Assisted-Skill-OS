@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "db+sqlite:///./celery_results.db"
+    use_inngest_queue: bool = True
+    inngest_event_base_url: str = "https://inn.gs/e"
+    inngest_event_key: str = ""
     s3_bucket_name: str = "skillos-dev"
     s3_region: str = "us-east-1"
     s3_access_key_id: str = ""
