@@ -9,7 +9,8 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
-import inngest.fastapi
+# import inngest if needed for queue/events, but inngest.fastapi does not exist
+import inngest
 
 from backend.api.router import api_router
 from backend.user.router import router as user_router
@@ -104,13 +105,6 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix="/api/v1")
     app.include_router(user_router, prefix="/api/v1")
 
-    # Inngest serving
-    inngest.fastapi.serve(
-        app,
-        inngest_client,
-        inngest_functions,
-    )
-    
     return app
 
 

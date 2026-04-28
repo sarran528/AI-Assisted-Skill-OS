@@ -4,11 +4,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.roadmap.generator import generate_roadmap, verify_roadmap_integrity
+from backend.roadmap.service import create_roadmap
 from backend.shared.db import get_session
 from backend.shared.db.repositories.job_repository import JobRepository
 from backend.shared.db.repositories.roadmap_repository import RoadmapRepository
-from backend.roadmap.service import RoadmapService
 
 logger = logging.getLogger(__name__)
 
@@ -44,27 +43,9 @@ async def handle_roadmap_generation(
             "skill_id": skill_id
         })
         
-        # Generate roadmap using roadmap generator
-        roadmap = await generate_roadmap(
-            user_id=UUID(user_id),
-            skill_id=skill_id,
-            session=session,
-            research_data=skill_research,
-            profile_data=profile,
-        )
-        
-        # Verify integrity
-        is_valid = verify_roadmap_integrity(roadmap)
-        if not is_valid:
-            raise ValueError("Generated roadmap failed integrity check")
-        
-        # Persist to database
-        roadmap_service = RoadmapService(session)
-        persisted_roadmap = await roadmap_service.persist_roadmap(
-            user_id=UUID(user_id),
-            skill_id=skill_id,
-            roadmap=roadmap
-        )
+        # Build and persist the roadmap using the real roadmap service helper.
+        roadmap = await create_roadmap(session, UUID(user_id), skill_id)
+        persisted_roadmap = await RoadmapRepository.get_active(session, UUID(user_id), skill_id)
         
         result = {
             "skill_id": skill_id,
