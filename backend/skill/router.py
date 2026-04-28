@@ -32,6 +32,7 @@ from backend.skill.grounding_service import GroundingService
 from backend.shared.db.repositories.grounding_repository import GroundingRepository
 from backend.skill.intelligence_service import SkillIntelligenceService
 from backend.shared.db.models import CognitiveProfile
+from backend.shared.config import settings
 from backend.assessment.profile_vector import ProfileVector
 from backend.skill.intelligence import SkillAnalysisResponse, SkillResearchObject
 from backend.skill.template_pipeline import to_skill_id

@@ -37,105 +37,65 @@ export function RoadmapRequirementSummary(props: RoadmapRequirementSummaryProps)
     hoursPerWeek >= 6 ? "standard" :
     "extended"
   );
+  const weeklyLoad = hoursPerWeek >= 12 ? "High" : hoursPerWeek >= 6 ? "Balanced" : "Light";
+  const goalLabel = targetGoal === "professional" ? "Career" : targetGoal === "exam" ? "Exam" : "Personal";
+  const toolsLabel = hasTools ? "Ready" : "Need Setup";
 
   return (
-    <div style={{ backgroundColor: "rgba(11, 74, 43, 0.03)", borderRadius: "4px", border: "1px solid rgba(11, 74, 43, 0.2)", padding: "12px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "10px" }}>
-        {/* Column 1: Skill Context */}
-        <div>
-          <p style={{ margin: "0 0 8px", fontWeight: "bold", color: "#0b4a2b", fontSize: "9px", textTransform: "uppercase" }}>
-            📊 Skill Context
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", color: "#666" }}>
-            <div>
-              <span style={{ fontWeight: "bold", color: "#333" }}>Skill:</span> {skillName}
-            </div>
-            <div>
-              <span style={{ fontWeight: "bold", color: "#333" }}>Complexity:</span>{" "}
-              <span style={{ color: "#ff6b00", fontWeight: "bold" }}>
-                {(skillComplexity * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div>
-              <span style={{ fontWeight: "bold", color: "#333" }}>Est. Duration:</span> ~{estimatedWeeks} weeks
-            </div>
-          </div>
-        </div>
+    <div
+      style={{
+        border: "3px solid var(--border)",
+        boxShadow: "4px 4px 0 var(--shadow)",
+        background: "#fff",
+        padding: "14px",
+        marginBottom: "12px",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+        <p className="section-title" style={{ margin: 0 }}>Roadmap Input Summary</p>
+        <span className="mono-caps" style={{ fontSize: "10px" }}>Stage: Ready To Generate</span>
+      </div>
 
-        {/* Column 2: User Context */}
-        <div>
-          <p style={{ margin: "0 0 8px", fontWeight: "bold", color: "#0b4a2b", fontSize: "9px", textTransform: "uppercase" }}>
-            👤 User Context
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", color: "#666" }}>
-            <div>
-              <span style={{ fontWeight: "bold", color: "#333" }}>Experience:</span> {experienceLevel}
-            </div>
-            <div>
-              <span style={{ fontWeight: "bold", color: "#333" }}>Pace:</span> {difficultyAdjustment}
-            </div>
-            <div>
-              <span style={{ fontWeight: "bold", color: "#333" }}>Goal:</span> {targetGoal}
-            </div>
-          </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+        <div className="confirm-box" style={{ marginTop: 0 }}>
+          <p className="mono-caps" style={{ margin: "0 0 8px 0" }}>Skill Context</p>
+          <p style={{ margin: "0 0 6px 0" }}><strong>Skill:</strong> {skillName}</p>
+          <p style={{ margin: "0 0 6px 0" }}><strong>Complexity:</strong> {(skillComplexity * 100).toFixed(0)}%</p>
+          <p style={{ margin: 0 }}><strong>Estimated:</strong> ~{estimatedWeeks} weeks</p>
+        </div>
+        <div className="confirm-box" style={{ marginTop: 0 }}>
+          <p className="mono-caps" style={{ margin: "0 0 8px 0" }}>Learning Profile</p>
+          <p style={{ margin: "0 0 6px 0" }}><strong>Experience:</strong> {experienceLevel}</p>
+          <p style={{ margin: "0 0 6px 0" }}><strong>Pace:</strong> {difficultyAdjustment}</p>
+          <p style={{ margin: 0 }}><strong>Goal:</strong> {goalLabel}</p>
         </div>
       </div>
 
-      {/* Objective */}
-      <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(11, 74, 43, 0.1)" }}>
-        <p style={{ margin: "0 0 6px", fontWeight: "bold", color: "#0b4a2b", fontSize: "9px", textTransform: "uppercase" }}>
-          🎯 Your Objective
-        </p>
-        <p style={{ margin: 0, color: "#666", fontSize: "9px", lineHeight: "1.4", fontStyle: "italic" }}>
+      <div className="confirm-box" style={{ marginTop: 0 }}>
+        <p className="mono-caps" style={{ margin: "0 0 8px 0" }}>Objective</p>
+        <p style={{ margin: 0, lineHeight: 1.4 }}>
           "{userObjective}"
         </p>
       </div>
 
-      {/* Constraints */}
-      <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(11, 74, 43, 0.1)" }}>
-        <p style={{ margin: "0 0 6px", fontWeight: "bold", color: "#0b4a2b", fontSize: "9px", textTransform: "uppercase" }}>
-          ⚙️ Roadmap Constraints
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "6px", fontSize: "8px" }}>
-          <div
-            style={{
-              padding: "6px",
-              backgroundColor: "rgba(11, 74, 43, 0.05)",
-              borderRadius: "3px",
-              border: "1px solid rgba(11, 74, 43, 0.1)",
-            }}
-          >
-            <div style={{ fontWeight: "bold", color: "#0b4a2b", marginBottom: "2px" }}>Weekly Hours</div>
-            <div style={{ color: "#666" }}>{hoursPerWeek} hrs/wk</div>
-          </div>
-          <div
-            style={{
-              padding: "6px",
-              backgroundColor: "rgba(11, 74, 43, 0.05)",
-              borderRadius: "3px",
-              border: "1px solid rgba(11, 74, 43, 0.1)",
-            }}
-          >
-            <div style={{ fontWeight: "bold", color: "#0b4a2b", marginBottom: "2px" }}>Resources</div>
-            <div style={{ color: "#666" }}>{hasTools ? "Ready ✓" : "Needed"}</div>
-          </div>
-          <div
-            style={{
-              padding: "6px",
-              backgroundColor: "rgba(11, 74, 43, 0.05)",
-              borderRadius: "3px",
-              border: "1px solid rgba(11, 74, 43, 0.1)",
-            }}
-          >
-            <div style={{ fontWeight: "bold", color: "#0b4a2b", marginBottom: "2px" }}>Pace</div>
-            <div style={{ color: "#666" }}>{difficultyAdjustment}</div>
-          </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "8px", marginTop: "10px" }}>
+        <div className="stat-block" style={{ padding: "8px" }}>
+          <p className="mono-caps" style={{ margin: "0 0 4px 0", fontSize: "10px" }}>Hours/Week</p>
+          <p style={{ margin: 0, fontWeight: 700 }}>{hoursPerWeek}</p>
+        </div>
+        <div className="stat-block" style={{ padding: "8px" }}>
+          <p className="mono-caps" style={{ margin: "0 0 4px 0", fontSize: "10px" }}>Load</p>
+          <p style={{ margin: 0, fontWeight: 700 }}>{weeklyLoad}</p>
+        </div>
+        <div className="stat-block" style={{ padding: "8px" }}>
+          <p className="mono-caps" style={{ margin: "0 0 4px 0", fontSize: "10px" }}>Resources</p>
+          <p style={{ margin: 0, fontWeight: 700 }}>{toolsLabel}</p>
+        </div>
+        <div className="stat-block" style={{ padding: "8px" }}>
+          <p className="mono-caps" style={{ margin: "0 0 4px 0", fontSize: "10px" }}>Mode</p>
+          <p style={{ margin: 0, fontWeight: 700 }}>{difficultyAdjustment}</p>
         </div>
       </div>
-
-      <p style={{ fontSize: "8px", margin: "12px 0 0", color: "#999", fontStyle: "italic" }}>
-        These constraints will be used to generate a deterministic, personalized learning roadmap.
-      </p>
     </div>
   );
 }

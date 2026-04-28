@@ -3,77 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { skillApi } from "../api/skillApi";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
-import { Input } from "../components/ui/Input";
-import { SerpQueryVisualization } from "../components/skill/SerpQueryVisualization";
+import { SimplifiedDiscoveryForm } from "../components/skill/SimplifiedDiscoveryForm";
+import { ProgressBar } from "../components/skill/ProgressBar";
 import { RoadmapRequirementSummary } from "../components/skill/RoadmapRequirementSummary";
-import { SkillContextAnalysis } from "../components/skill/SkillContextAnalysis";
 import { useNavigationStore, type RoadmapPhase } from "../store/navigationStore";
 import { Skill } from "../components/skill/SkillCard";
 import { DynamicQuestionForm } from "../components/skill/DynamicQuestionForm";
-import { type SkillAnalysis, type SkillQuestion } from "../api/skillApi";
+import { type SkillQuestion } from "../api/skillApi";
 
-// Pipeline stage visualization — Neo-Brutalist
-const PipelineStages = ({ currentStage }: { currentStage: "idle" | "discover" | "aggregate" | "llm" | "form" | "generate" }) => {
-  const stages = [
-    { id: "discover",  label: "SERP",  description: "Search" },
-    { id: "aggregate", label: "AGGR",  description: "Clean" },
-    { id: "llm",       label: "AI",    description: "Analyse" },
-    { id: "form",      label: "FORM",  description: "Inputs" },
-    { id: "generate",  label: "MAP",   description: "Roadmap" },
-  ];
-
-  const order = ["idle", "discover", "aggregate", "llm", "form", "generate"];
-  const currentIndex = order.indexOf(currentStage);
-
-  return (
-    <div style={{
-      display: "flex",
-      border: "3px solid var(--border)",
-      boxShadow: "4px 4px 0 var(--shadow)",
-      marginBottom: "16px",
-      overflow: "hidden",
-    }}>
-      {stages.map((stage, idx) => {
-        const stageIndex = order.indexOf(stage.id);
-        const isActive   = stageIndex === currentIndex;
-        const isComplete = stageIndex < currentIndex;
-
-        return (
-          <div
-            key={stage.id}
-            style={{
-              flex: 1,
-              borderRight: idx < stages.length - 1 ? "2px solid var(--border)" : "none",
-              background: isActive ? "var(--color-primary)" : isComplete ? "var(--border)" : "#fff",
-              padding: "10px 6px",
-              textAlign: "center",
-              transition: "background 0.2s",
-            }}
-          >
-            <div style={{
-              fontFamily: "var(--font-primary)",
-              fontSize: "8px",
-              color: isComplete ? "#fff" : isActive ? "var(--foreground)" : "#aaa",
-              marginBottom: "4px",
-              letterSpacing: "0.05em",
-            }}>
-              {stage.label}
-            </div>
-            <div style={{
-              fontFamily: "var(--font-secondary)",
-              fontSize: "9px",
-              color: isComplete ? "#ccc" : isActive ? "#333" : "#bbb",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}>
-              {stage.description}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 export function SkillSelectView() {
   const navigate = useNavigate();
@@ -94,8 +31,6 @@ export function SkillSelectView() {
   const [composeError, setComposeError] = useState<string | null>(null);
   const [pipelineStage, setPipelineStage] = useState<"idle" | "discover" | "aggregate" | "llm" | "form" | "generate">("idle");
   const [discoverJobId, setDiscoverJobId] = useState<string | null>(null);
-  const [researchJobId, setResearchJobId] = useState<string | null>(null);
-  const [skillAnalysis, setSkillAnalysis] = useState<SkillAnalysis | null>(null);
   const [skillQuestions, setSkillQuestions] = useState<SkillQuestion[]>([]);
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -183,7 +118,6 @@ export function SkillSelectView() {
     setPipelineStage("llm");
     try {
       const response = await skillApi.analyzeSkill(skill.name);
-      setSkillAnalysis(response.data.analysis);
       setSkillQuestions(response.data.questions);
       setPipelineStage("form");
     } catch (err) {
@@ -202,9 +136,9 @@ export function SkillSelectView() {
       .finally(() => setLoading(false));
   };
 
-  const onDiscoverSkill = async () => {
-    const skillName = search.trim();
-    if (!skillName) return;
+  const onDiscoverSkill = async (skillName: string) => {
+    if (!skillName.trim()) return;
+    setSearch(skillName);
     setDiscovering(true);
     setDiscoverError(null);
     setDiscoverStatus(null);
@@ -230,7 +164,6 @@ export function SkillSelectView() {
       setTimeout(async () => {
         setPipelineStage("llm");
         const analysisRes = await skillApi.analyzeSkill(skillName);
-        setSkillAnalysis(analysisRes.data.analysis);
         setSkillQuestions(analysisRes.data.questions);
         setPipelineStage("form");
       }, 1500);
@@ -264,7 +197,6 @@ export function SkillSelectView() {
       target_goal: targetGoal,
       dynamic_answers: dynamicAnswers,
     }).then((response) => {
-      setResearchJobId(response.data.research_job_id);
       setPipelineStage("generate");
       const phases = buildRoadmap(activeSkill.name as string);
       setRoadmapPhases(phases);
@@ -285,6 +217,29 @@ export function SkillSelectView() {
     }).finally(() => setGenerating(false));
   };
 
+  const onOpenRoadmap = (skill: Skill) => {
+    setSelectedSkill(skill);
+    setCurrentSkill({ skillId: skill.skill_id, skillName: skill.name, domain: "General" });
+    const phases = buildRoadmap(skill.name);
+    setRoadmapPhases(phases);
+    setRoadmapState({
+      isGenerating: false,
+      isGenerated: true,
+      currentPhase: "Phase 1",
+      currentTechnique: "Core Fundamentals",
+      roadmapComplete: false,
+    });
+    setSystemState("roadmap_active");
+    navigate("/roadmap");
+  };
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const isOpen = !!(selectedSkill || currentSkill.skillId);
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [selectedSkill, currentSkill.skillId]);
+
   if (!profileState.isActive) {
     return (
       <main className="main-panel main-panel--centered">
@@ -301,103 +256,35 @@ export function SkillSelectView() {
 
   return (
     <main className="main-panel">
-      {/* Search Hero */}
-      <section className="search-hero">
-        <h1 className="headline" style={{ fontSize: "2.5rem" }}>What will you master?</h1>
-        <p className="mono-caps" style={{ marginTop: "8px" }}>Enter any skill to discover or generate a roadmap</p>
-        
-        <div className="search-input-wrapper">
-          <input
-            className={`premium-input ${discovering ? "searching-pulse" : ""}`}
-            placeholder="e.g. Quantum Computing, Watercolor Painting..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onDiscoverSkill()}
-          />
-          
-          <div style={{ marginTop: "16px", display: "flex", justifyContent: "center", gap: "12px" }}>
-            <BrutalButton 
-              variant="mono" 
-              onClick={onDiscoverSkill} 
-              disabled={discovering || !search.trim()}
-              style={{ minWidth: "200px" }}
-            >
-              {discovering ? "DECODING INTERNET..." : "DISCOVER SKILL"}
-            </BrutalButton>
+      <section style={{ padding: "24px 24px 0" }}>
+        <SimplifiedDiscoveryForm
+          onSubmit={onDiscoverSkill}
+          isLoading={discovering}
+          error={discoverError}
+        />
+
+        {discovering && (
+          <div style={{ marginTop: "12px" }}>
+            <ProgressBar currentStage={pipelineStage} isLoading={discovering} />
           </div>
-          
-          {discoverError && (
-            <p className="small-copy" style={{ color: "#7a0000", marginTop: "12px", fontWeight: "bold" }}>
-              ERROR: {discoverError}
-            </p>
-          )}
-          {discoverStatus && (
-            <p className="small-copy" style={{ color: "#0b4a2b", marginTop: "12px", fontWeight: "bold" }}>
-              {discoverStatus}
-            </p>
-          )}
-          {discovering && (
-            <div style={{
-              marginTop: "24px",
-              border: "3px solid var(--border)",
-              boxShadow: "6px 6px 0 var(--shadow)",
-              background: "#fff",
-            }}>
-              {/* Title bar */}
-              <div style={{
-                background: "var(--color-primary)",
-                borderBottom: "3px solid var(--border)",
-                padding: "10px 16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}>
-                <span style={{ fontFamily: "var(--font-primary)", fontSize: "9px", letterSpacing: "0.08em" }}>
-                  ► SKILL DISCOVERY PIPELINE
-                </span>
-                <span style={{
-                  fontFamily: "var(--font-primary)",
-                  fontSize: "8px",
-                  border: "2px solid var(--border)",
-                  padding: "2px 8px",
-                  background: "var(--foreground)",
-                  color: "var(--color-primary)",
-                  animation: "blink-status 1s step-end infinite",
-                }}>
-                  ● RUNNING
-                </span>
-              </div>
+        )}
 
-              {/* Stage tracker */}
-              <div style={{ padding: "16px 16px 0" }}>
-                <PipelineStages currentStage={pipelineStage} />
-              </div>
-
-              {/* SERP grid */}
-              <div style={{ padding: "0 16px" }}>
-                <SerpQueryVisualization skill_name={search} isRunning={pipelineStage === "discover"} />
-              </div>
-
-              {/* Status footer */}
-              <div style={{
-                borderTop: "3px solid var(--border)",
-                padding: "10px 16px",
-                background: "var(--muted)",
-                fontFamily: "'Space Mono', monospace",
-                fontSize: "10px",
-                color: "#444",
-              }}>
-                <strong>ENGINE:</strong> Analysing "{search}" — fetching roadmap patterns, prerequisites, and failure modes.
-              </div>
-            </div>
-          )}
-          <style>{`
-            @keyframes blink-status {
-              0%, 100% { opacity: 1; }
-              50% { opacity: 0.15; }
-            }
-          `}</style>
-        </div>
+        {discoverStatus && (
+          <div
+            style={{
+              border: "2px solid var(--border)",
+              color: "var(--foreground)",
+              background: "var(--accent-green)",
+              padding: "10px 12px",
+              marginTop: "12px",
+              fontFamily: "var(--font-secondary)",
+              fontSize: "12px",
+              boxShadow: "3px 3px 0 var(--shadow)",
+            }}
+          >
+            {discoverStatus}
+          </div>
+        )}
       </section>
 
       {/* Results Section */}
@@ -426,12 +313,26 @@ export function SkillSelectView() {
                   <span>Complexity: {(skill.complexity * 100).toFixed(0)}%</span>
                   <span>Estimate: {estimateDuration(skill.complexity)}</span>
                 </div>
-                <div style={{ marginTop: "auto", paddingTop: "16px" }}>
+                <div style={{ marginTop: "auto", paddingTop: "16px", display: "grid", gap: "8px" }}>
                   <BrutalButton 
                     variant={selectedSkill?.skill_id === skill.skill_id ? "secondary" : "primary"}
                     style={{ width: "100%", fontSize: "12px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectSkill(skill);
+                    }}
                   >
                     {selectedSkill?.skill_id === skill.skill_id ? "SELECTED" : "VIEW DETAILS"}
+                  </BrutalButton>
+                  <BrutalButton
+                    variant="mono"
+                    style={{ width: "100%", fontSize: "12px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenRoadmap(skill);
+                    }}
+                  >
+                    OPEN ROADMAP
                   </BrutalButton>
                 </div>
               </div>
@@ -440,11 +341,9 @@ export function SkillSelectView() {
         )}
       </section>
 
-      {/* Setup Modal Overlay */}
       {(selectedSkill || currentSkill.skillId) && (
         <div className="setup-overlay" style={{ 
-          backgroundColor: "rgba(0,0,0,0.85)", 
-          backdropFilter: "blur(12px)",
+          backgroundColor: "#000",
           zIndex: 1000,
           display: "flex",
           alignItems: "center",
@@ -455,13 +354,13 @@ export function SkillSelectView() {
             overflowY: "auto", 
             width: "90%", 
             maxWidth: "800px",
-            backgroundColor: "var(--color-bg)",
+            backgroundColor: "var(--background)",
             border: "4px solid var(--border)",
             boxShadow: "12px 12px 0 var(--shadow)",
             padding: "32px",
             position: "relative"
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "19px" }}>
               <div>
                 <span className="mono-caps" style={{ color: "var(--color-tertiary)" }}>Skill Initialization</span>
                 <h2 className="headline">Configuring {selectedSkill?.name || currentSkill.skillName}</h2>
@@ -480,140 +379,140 @@ export function SkillSelectView() {
 
             {discoverJobId && (
               <div style={{ marginBottom: "24px" }}>
-                <PipelineStages currentStage={pipelineStage} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "10px", marginTop: "12px" }}>
-                  <div className="brutal-card" style={{ padding: "8px", backgroundColor: "rgba(11, 74, 43, 0.05)" }}>
-                    <span style={{ color: "#666", fontSize: "8px", textTransform: "uppercase" }}>Discovery Task</span>
-                    <div style={{ fontSize: "10px", color: "#0b4a2b", fontWeight: "bold", fontFamily: "monospace" }}>{discoverJobId.slice(0, 16)}</div>
-                  </div>
-                  {researchJobId && (
-                    <div className="brutal-card" style={{ padding: "8px", backgroundColor: "rgba(11, 74, 43, 0.05)" }}>
-                      <span style={{ color: "#666", fontSize: "8px", textTransform: "uppercase" }}>Synthesis Task</span>
-                      <div style={{ fontSize: "10px", color: "#0b4a2b", fontWeight: "bold", fontFamily: "monospace" }}>{researchJobId.slice(0, 16)}</div>
-                    </div>
-                  )}
-                </div>
+                <ProgressBar currentStage={pipelineStage} isLoading={pipelineStage !== "idle"} />
               </div>
             )}
 
-            <SkillContextAnalysis
-              skillName={selectedSkill?.name || search}
-              skillContext={skillAnalysis || undefined}
-              isLoading={pipelineStage === "llm" || isAnalyzing}
-            />
+            {(pipelineStage === "llm" || isAnalyzing) && (
+              <div className="brutal-card brutal-card--muted" style={{ marginBottom: "16px" }}>
+                <p className="mono-caps" style={{ margin: 0 }}>Preparing your setup form...</p>
+              </div>
+            )}
 
-            <div className="stepper-header">
-              <div className="step-dot active"></div>
-              <div className={`step-dot ${whyLearn.length > 5 ? "complete" : ""}`}></div>
-              <div className="step-dot"></div>
+            <div className="dashboard-value-row" style={{ marginBottom: "16px" }}>
+              <label className="section-title">Why do you want to learn this?</label>
+              <textarea
+                className="brutal-input brutal-input--textarea"
+                value={whyLearn}
+                onChange={(e) => setWhyLearn(e.target.value)}
+                rows={4}
+                placeholder="Example: I want to improve communication at work."
+                style={{ width: "100%" }}
+              />
             </div>
 
-              <div style={{ padding: "16px", backgroundColor: "rgba(255, 107, 0, 0.05)", border: "2px solid var(--border)", boxShadow: "4px 4px 0 var(--shadow)", marginBottom: "20px" }}>
-                <p className="mono-caps" style={{ color: "#ff6b00", marginBottom: "12px", fontSize: "10px" }}>Stage 5: Dynamic Input Form</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+              <div className="dashboard-value-row">
+                <label className="section-title">Experience</label>
+                <select 
+                  className="brutal-input" 
+                  value={experienceLevel} 
+                  onChange={(e) => setExperienceLevel(e.target.value as any)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="beginner">Newbie</option>
+                  <option value="intermediate">Some knowledge</option>
+                  <option value="advanced">Expert / Refresher</option>
+                </select>
+              </div>
+              <div className="dashboard-value-row">
+                <label className="section-title">Focus</label>
+                <select 
+                  className="brutal-input" 
+                  value={targetGoal} 
+                  onChange={(e) => setTargetGoal(e.target.value as any)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="hobby">Personal</option>
+                  <option value="professional">Career</option>
+                  <option value="exam">Exam</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+              <div className="dashboard-value-row">
+                <label className="section-title">Hours / Week</label>
+                <input 
+                  className="brutal-input" 
+                  type="number" 
+                  min={1} 
+                  max={40} 
+                  value={hoursPerWeek} 
+                  onChange={(e) => setHoursPerWeek(Number(e.target.value))} 
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div className="dashboard-value-row">
+                <label className="section-title">Tools Ready?</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <BrutalButton 
+                    variant={hasTools ? "primary" : "secondary"} 
+                    onClick={() => setHasTools(true)}
+                    style={{ flex: 1, fontSize: "11px" }}
+                  >
+                    YES
+                  </BrutalButton>
+                  <BrutalButton 
+                    variant={!hasTools ? "primary" : "secondary"} 
+                    onClick={() => setHasTools(false)}
+                    style={{ flex: 1, fontSize: "11px" }}
+                  >
+                    NO
+                  </BrutalButton>
+                </div>
+              </div>
+            </div>
+
+            {skillQuestions.length > 0 && (
+              <div className="brutal-card" style={{ marginBottom: "16px", padding: "14px" }}>
                 <DynamicQuestionForm 
                   questions={skillQuestions}
                   answers={dynamicAnswers}
                   onAnswerChange={(id, val) => setDynamicAnswers(prev => ({ ...prev, [id]: val }))}
                 />
               </div>
+            )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="dashboard-value-row">
-                  <label className="section-title">Experience</label>
-                  <select 
-                    className="brutal-input" 
-                    value={experienceLevel} 
-                    onChange={(e) => setExperienceLevel(e.target.value as any)}
-                    style={{ width: "100%" }}
-                  >
-                    <option value="beginner">Newbie</option>
-                    <option value="intermediate">Some knowledge</option>
-                    <option value="advanced">Expert / Refresher</option>
-                  </select>
-                </div>
-
-                <div className="dashboard-value-row">
-                  <label className="section-title">Path Focus</label>
-                  <select 
-                    className="brutal-input" 
-                    value={targetGoal} 
-                    onChange={(e) => setTargetGoal(e.target.value as any)}
-                    style={{ width: "100%" }}
-                  >
-                    <option value="hobby">Personal Interest</option>
-                    <option value="professional">Career/Work</option>
-                    <option value="exam">Academic/Test</option>
-                  </select>
-                </div>
+            {composeError && (
+              <div className="brutal-card brutal-card--red" style={{ padding: "10px", fontSize: "12px", marginBottom: "12px" }}>
+                <strong>FORM ERROR:</strong> {composeError}
               </div>
+            )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="dashboard-value-row">
-                  <label className="section-title">Intensity (Hrs/Week)</label>
-                  <input 
-                    className="brutal-input" 
-                    type="number" 
-                    min={1} 
-                    max={40} 
-                    value={hoursPerWeek} 
-                    onChange={(e) => setHoursPerWeek(Number(e.target.value))} 
-                    style={{ width: "100%" }}
-                  />
-                </div>
+            {selectedSkill && whyLearn.trim() && (
+              <RoadmapRequirementSummary
+                skillName={selectedSkill.name}
+                skillComplexity={selectedSkill.complexity}
+                userObjective={whyLearn}
+                experienceLevel={experienceLevel}
+                targetGoal={targetGoal}
+                hoursPerWeek={hoursPerWeek}
+                hasTools={hasTools}
+              />
+            )}
 
-                <div className="dashboard-value-row">
-                  <label className="section-title">Resources Ready?</label>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <BrutalButton 
-                      variant={hasTools ? "primary" : "secondary"} 
-                      onClick={() => setHasTools(true)}
-                      style={{ flex: 1, fontSize: "11px" }}
-                    >
-                      YES
-                    </BrutalButton>
-                    <BrutalButton 
-                      variant={!hasTools ? "primary" : "secondary"} 
-                      onClick={() => setHasTools(false)}
-                      style={{ flex: 1, fontSize: "11px" }}
-                    >
-                      NO
-                    </BrutalButton>
-                  </div>
-                </div>
+            <div className="brutal-card brutal-card--muted" style={{ padding: "12px", marginBottom: "8px" }}>
+              <p className="section-title" style={{ marginBottom: "8px" }}>Roadmap Generation</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px" }}>
+                <div><strong>Input Skill:</strong> {selectedSkill?.name || currentSkill.skillName || "Not selected"}</div>
+                <div><strong>Target Goal:</strong> {targetGoal}</div>
+                <div><strong>Intensity:</strong> {hoursPerWeek} hrs/week</div>
+                <div><strong>Resources:</strong> {hasTools ? "ready" : "not ready"}</div>
               </div>
+              <p style={{ margin: "10px 0 0 0", fontSize: "11px" }}>
+                The roadmap engine merges discovered skill structure, your profile context, and your form answers into a deterministic phase plan.
+              </p>
+            </div>
 
-              {composeError && (
-                <div className="brutal-card brutal-card--red" style={{ padding: "10px", fontSize: "12px" }}>
-                  <strong>COMPOSER ERROR:</strong> {composeError}
-                </div>
-              )}
-
-              <div style={{ padding: "12px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "4px", fontSize: "10px", color: "#666", borderLeft: "3px solid #ff6b00" }}>
-                <p style={{ margin: 0, marginBottom: "6px", fontWeight: "bold", color: "#333" }}>📊 Pipeline Overview</p>
-                <p style={{ margin: 0, marginBottom: "4px" }}>Your answers will be merged with the LLM-generated skill analysis to create a deterministic roadmap.</p>
-                <p style={{ margin: 0 }}>Stages: SERP Research → Aggregation → LLM Analysis → Your Answers → Roadmap Generation</p>
-              </div>
-
-              {selectedSkill && whyLearn.trim() && (
-                <RoadmapRequirementSummary
-                  skillName={selectedSkill.name}
-                  skillComplexity={selectedSkill.complexity}
-                  userObjective={whyLearn}
-                  experienceLevel={experienceLevel}
-                  targetGoal={targetGoal}
-                  hoursPerWeek={hoursPerWeek}
-                  hasTools={hasTools}
-                />
-              )}
-
-              <BrutalButton
-                variant="primary"
-                onClick={onGenerateRoadmap}
-                disabled={generating}
-                style={{ width: "100%", marginTop: "10px", padding: "16px" }}
-              >
-                {generating ? "SYNTHESIZING ROADMAP..." : "INITIALIZE ROADMAP"}
-              </BrutalButton>
+            <BrutalButton
+              variant="primary"
+              onClick={onGenerateRoadmap}
+              disabled={generating}
+              style={{ width: "100%", marginTop: "10px", padding: "16px" }}
+            >
+              {generating ? "BUILDING ROADMAP..." : "CREATE ROADMAP"}
+            </BrutalButton>
           </div>
         </div>
       )}
