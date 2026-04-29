@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import { useAssessmentStore, GameId, BehavioralSignals, TimeSignals } from "../stores/assessmentStore";
 import { useSubmitLevel, useAssessmentStatus } from "../hooks/useAssessment";
 import { StroopTest } from "../components/assessment/games/StroopTest";
@@ -64,7 +65,14 @@ export function AssessmentRunView() {
           finishLevel(levelNumber, signals, timeSignals, livesRemaining, score, true);
           navigate("/assessment");
         },
-        onError: () => {
+        onError: (error) => {
+          if (axios.isAxiosError(error)) {
+            const detail = error.response?.data?.detail;
+            if (typeof detail === "string" && detail.length > 0) {
+              setSubmitError(`Failed to submit this level: ${detail}`);
+              return;
+            }
+          }
           setSubmitError("Failed to submit this level. Please try Continue again.");
         }
       });

@@ -9,6 +9,7 @@ import { loginUser, registerUser } from "../api/auth";
 import { BrutalButton } from "../components/brutal/BrutalButton";
 import { BrutalCard } from "../components/brutal/BrutalCard";
 import { useAuthStore } from "../store/authStore";
+import { useAssessmentStore } from "../stores/assessmentStore";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -30,6 +31,7 @@ export function AuthView({ defaultMode = "login" }: { defaultMode?: "login" | "r
   const [mode, setMode] = useState<"login" | "register">(defaultMode);
   const setToken = useAuthStore((state) => state.setToken);
   const setUser = useAuthStore((state) => state.setUser);
+  const resetAssessment = useAssessmentStore((state) => state.resetAssessment);
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -44,6 +46,8 @@ export function AuthView({ defaultMode = "login" }: { defaultMode?: "login" | "r
     mutationFn: loginUser,
     onSuccess: (data: any) => {
       const token = data.accessToken || data.access_token;
+      // Session ids are user-scoped; clear persisted assessment state on auth change.
+      resetAssessment();
       setToken(token);
       axiosClient
         .get("/users/me", { headers: { Authorization: `Bearer ${token}` } })
@@ -56,6 +60,8 @@ export function AuthView({ defaultMode = "login" }: { defaultMode?: "login" | "r
     mutationFn: registerUser,
     onSuccess: (data: any) => {
       const token = data.accessToken || data.access_token;
+      // New account should always start with a fresh assessment session state.
+      resetAssessment();
       setToken(token);
       setUser({ id: data.user_id, email: data.email ?? "" });
       navigate("/dashboard");

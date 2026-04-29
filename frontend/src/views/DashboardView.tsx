@@ -128,11 +128,11 @@ export function DashboardView() {
         <span>Profile: {profileActive ? "Active" : "Locked"}</span>
         <span>|</span>
         <span>Skill: {currentSkill.skillName ?? "Not selected"}</span>
-        {health && (
+        {/* {health && (
           <span style={{ marginLeft: 'auto', color: health.status === 'ok' ? '#00FF41' : '#FF3131', fontWeight: 'bold' }}>
             ● SYSTEM: {health.status.toUpperCase()}
           </span>
-        )}
+        )} */}
       </section>
 
       <section className="dashboard-columns">

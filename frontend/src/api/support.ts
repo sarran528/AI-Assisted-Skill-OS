@@ -6,9 +6,9 @@ import type {
 } from "../types";
 
 export async function askDoubt(payload: {
-  session_id: string;
-  phase: string;
-  technique_id: string;
+  session_id?: string | null;
+  phase?: string | null;
+  technique_id?: string | null;
   user_query: string;
 }): Promise<DoubtAnswerResponse> {
   const response = await axiosClient.post("/doubt/ask", payload);
@@ -19,6 +19,7 @@ export async function fetchSupportResources(params: {
   skill_id: string;
   phase: string;
   technique_id?: string;
+  user_query?: string;
 }): Promise<SupportResourcesResponse> {
   const response = await axiosClient.get("/resources", {
     params,
